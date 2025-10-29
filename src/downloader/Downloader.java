@@ -281,7 +281,7 @@ public class Downloader implements Runnable {
             // successCount
             // + " barrels indexed " + pageInfo.getUrl());
             // } else if (successCount > 0) {
-            // System.out.println("[" + downloaderId + "] ⚠ PARTIAL SUCCESS: " +
+            // System.out.println("[" + downloaderId + "] PARTIAL SUCCESS: " +
             // successCount + "/" + allBarrels.size()
             // + " barrels indexed " + pageInfo.getUrl());
             // } else {
@@ -289,7 +289,7 @@ public class Downloader implements Runnable {
                 System.err.println(
                         "[" + downloaderId + "] MULTICAST FAILED: No barrels indexed " + pageInfo.getUrl());
             } else if (successCount < allBarrels.size()) {
-                System.err.println("[" + downloaderId + "] ⚠ PARTIAL SUCCESS: " + successCount + "/" + allBarrels.size()
+                System.err.println("[" + downloaderId + "] PARTIAL SUCCESS: " + successCount + "/" + allBarrels.size()
                         + " barrels indexed " + pageInfo.getUrl());
             }
 
