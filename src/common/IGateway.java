@@ -33,4 +33,52 @@ public interface IGateway extends Remote {
      * Obtém estatísticas gerais do sistema
      */
     SystemStats getSystemStats() throws RemoteException;
+
+    /**
+     * Obtém próximo URL da fila (para Downloaders)
+     * 
+     * @param timeout Tempo de espera em segundos
+     * @return URL para processar, ou null se timeout
+     */
+    String pollURL(long timeout) throws RemoteException;
+
+    /**
+     * Obtém próximo URL da fila, bloqueando até estar disponível (para Downloaders)
+     * Este método bloqueia indefinidamente até que um URL esteja disponível
+     * 
+     * @return URL para processar (nunca null)
+     */
+    String getNextURL() throws RemoteException;
+
+    /**
+     * Verifica se um URL já foi visitado
+     * 
+     * @param url URL a verificar
+     * @return true se já foi visitado
+     */
+    boolean isURLVisited(String url) throws RemoteException;
+
+    /**
+     * Marca um URL como visitado
+     * 
+     * @param url URL a marcar
+     * @return true se foi marcado agora, false se já estava visitado
+     */
+    boolean markURLAsVisited(String url) throws RemoteException;
+
+    /**
+     * Adiciona um URL descoberto à fila (com prioridade normal)
+     * 
+     * @param url          URL descoberto
+     * @param highPriority true para alta prioridade (user-submitted), false para
+     *                     normal (crawled)
+     */
+    void addDiscoveredURL(String url, boolean highPriority) throws RemoteException;
+
+    /**
+     * Obtém o conteúdo atual da fila de URLs (para debug)
+     * 
+     * @return String representando o estado da fila
+     */
+    String getURLQueueStatus() throws RemoteException;
 }

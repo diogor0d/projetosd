@@ -41,6 +41,9 @@ public class GoogolClient {
                     case "4":
                         showStatistics();
                         break;
+                    case "5":
+                        printURLQueue();
+                        break;
                     case "0":
                         running = false;
                         break;
@@ -65,6 +68,7 @@ public class GoogolClient {
         System.out.println("2. Search");
         System.out.println("3. Get pages pointing to URL");
         System.out.println("4. View statistics");
+        System.out.println("5. View URL queue");
         System.out.println("0. Exit");
         System.out.print("Choose an option: ");
     }
@@ -159,6 +163,11 @@ public class GoogolClient {
     private void showStatistics() throws Exception {
         SystemStats stats = gateway.getSystemStats();
         System.out.println("\n" + stats.toString());
+    }
+
+    private void printURLQueue() throws Exception {
+        String queueStatus = gateway.getURLQueueStatus();
+        System.out.println(queueStatus);
     }
 
     public static void main(String[] args) {

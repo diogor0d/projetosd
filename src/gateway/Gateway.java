@@ -1,7 +1,6 @@
 package gateway;
 
 import common.*;
-import queue.URLQueue;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
@@ -18,6 +17,8 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
     private Map<String, Integer> searchFrequency; // Tracking de pesquisas mais comuns
     private int currentBarrelIndex; // Para round-robin
     private URLQueue urlQueue;
+    private VisitedURLs visitedUrls;
+    private BarrelRegistry barrelRegistry; // Registry for multicast support
 
     // Cache de resultados de pesquisa
     private Map<String, List<SearchResult>> searchCache;
@@ -29,8 +30,17 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
         this.currentBarrelIndex = 0;
         this.searchCache = new ConcurrentHashMap<>();
         this.urlQueue = new URLQueue();
+        this.visitedUrls = new VisitedURLs();
+        this.barrelRegistry = new BarrelRegistry(); // Initialize barrel registry
 
-        System.out.println("Gateway initialized");
+        System.out.println("Gateway initialized with Barrel Registry");
+    }
+
+    /**
+     * Get the barrel registry (for RMI access)
+     */
+    public BarrelRegistry getBarrelRegistry() {
+        return barrelRegistry;
     }
 
     public void registerBarrel(IBarrel barrel) {
@@ -40,8 +50,8 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
     @Override
     public void indexURL(String url) throws RemoteException {
-        System.out.println("Indexing URL: " + url);
-        urlQueue.addURL(url);
+        System.out.println("Indexing URL (user-submitted): " + url);
+        urlQueue.addURL(url, true); // High priority for user-submitted URLs
     }
 
     @Override
@@ -166,29 +176,100 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
         return urlQueue;
     }
 
+    public VisitedURLs getVisitedUrls() {
+        return visitedUrls;
+    }
+
+    @Override
+    public String pollURL(long timeout) throws RemoteException {
+        try {
+            return urlQueue.pollURL(timeout, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RemoteException("Interrupted while polling URL", e);
+        }
+    }
+
+    @Override
+    public String getNextURL() throws RemoteException {
+        try {
+            return urlQueue.getNextURL();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RemoteException("Interrupted while waiting for URL", e);
+        }
+    }
+
+    @Override
+    public boolean isURLVisited(String url) throws RemoteException {
+        return visitedUrls.isVisited(url);
+    }
+
+    @Override
+    public boolean markURLAsVisited(String url) throws RemoteException {
+        return visitedUrls.markAsVisited(url);
+    }
+
+    @Override
+    public void addDiscoveredURL(String url, boolean highPriority) throws RemoteException {
+        urlQueue.addURL(url, highPriority);
+    }
+
+    @Override
+    public String getURLQueueStatus() throws RemoteException {
+        return urlQueue.getQueueAsString();
+    }
+
     public static void main(String[] args) {
         try {
             Gateway gateway = new Gateway();
 
-            // Regista no RMI Registry
-            java.rmi.registry.LocateRegistry.createRegistry(1099);
-            java.rmi.Naming.rebind("rmi://localhost/Gateway", gateway);
-
-            System.out.println("Gateway ready and listening...");
-
-            // Conecta aos barrels existentes
+            // Regista no RMI Registry (ou usa existente)
             try {
-                IBarrel barrel1 = (IBarrel) java.rmi.Naming.lookup("rmi://localhost/Barrel1");
-                gateway.registerBarrel(barrel1);
+                java.rmi.registry.LocateRegistry.createRegistry(1099);
+                System.out.println("RMI Registry created on port 1099");
             } catch (Exception e) {
-                System.err.println("Could not connect to Barrel1: " + e.getMessage());
+                // Registry já existe, continua
+                System.out.println("Using existing RMI Registry on port 1099");
             }
 
-            try {
-                IBarrel barrel2 = (IBarrel) java.rmi.Naming.lookup("rmi://localhost/Barrel2");
-                gateway.registerBarrel(barrel2);
-            } catch (Exception e) {
-                System.err.println("Could not connect to Barrel2: " + e.getMessage());
+            java.rmi.Naming.rebind("rmi://localhost/Gateway", gateway);
+
+            // Also bind the barrel registry for direct access
+            java.rmi.Naming.rebind("rmi://localhost/BarrelRegistry", gateway.getBarrelRegistry());
+
+            System.out.println("Gateway and BarrelRegistry ready and listening...");
+            System.out.println("Waiting for barrels to register themselves...");
+
+            // Thread para imprimir status da fila e barrels registrados a cada 5 segundos
+            Thread statusThread = new Thread(() -> {
+                while (true) {
+                    try {
+                        Thread.sleep(5000); // 5 segundos
+                        int queueSize = gateway.urlQueue.size();
+                        int visitedSize = gateway.visitedUrls.size();
+                        int barrelCount = 0;
+                        try {
+                            barrelCount = gateway.barrelRegistry.getBarrelCount();
+                        } catch (Exception e) {
+                            // Ignore
+                        }
+                        System.out.println(
+                                "[Gateway Status] URL Queue: " + queueSize + " | Visited URLs: " + visitedSize
+                                        + " | Active Barrels: " + barrelCount);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+            });
+            statusThread.setDaemon(true); // Thread daemon para não impedir shutdown
+            statusThread.start();
+
+            // Mantém o servidor ativo
+            System.out.println("Press Ctrl+C to stop...");
+            Object lock = new Object();
+            synchronized (lock) {
+                lock.wait(); // Espera indefinidamente
             }
 
         } catch (Exception e) {

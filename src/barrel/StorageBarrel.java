@@ -169,11 +169,93 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             String barrelId = args[0];
             StorageBarrel barrel = new StorageBarrel(barrelId);
 
-            // Regista no RMI Registry
-            java.rmi.registry.LocateRegistry.createRegistry(1099);
+            // Regista no RMI Registry (ou usa existente)
+            try {
+                java.rmi.registry.LocateRegistry.createRegistry(1099);
+                System.out.println("RMI Registry created on port 1099");
+            } catch (Exception e) {
+                // Registry já existe, continua
+                System.out.println("Using existing RMI Registry on port 1099");
+            }
+
             java.rmi.Naming.rebind("rmi://localhost/Barrel" + barrelId, barrel);
 
+            System.out.println("Storage Barrel " + barrelId + " bound to RMI registry");
+
+            // Register with BarrelRegistry for multicast support - retry until successful
+            // and keep monitoring connection health
+            final boolean[] keepRunning = { true };
+            Thread registrationThread = new Thread(() -> {
+                System.out.println("Starting BarrelRegistry connection manager...");
+                while (keepRunning[0]) {
+                    boolean registered = false;
+                    IBarrelRegistry registry = null;
+
+                    // Phase 1: Initial registration (retry until successful)
+                    System.out.println("Attempting to register with BarrelRegistry...");
+                    while (!registered && keepRunning[0]) {
+                        try {
+                            registry = (IBarrelRegistry) java.rmi.Naming
+                                    .lookup("rmi://localhost/BarrelRegistry");
+                            registry.registerBarrel(barrelId, barrel);
+                            registered = true;
+                            System.out.println("✓ Storage Barrel " + barrelId + " registered with BarrelRegistry");
+                        } catch (Exception e) {
+                            System.err.println("Connection attempt to Gateway failed. Retrying in 3 seconds...");
+                            try {
+                                Thread.sleep(3000);
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                return;
+                            }
+                        }
+                    }
+
+                    // Phase 2: Health monitoring (ping registry periodically)
+                    while (registered && keepRunning[0]) {
+                        try {
+                            Thread.sleep(5000); // Check every 5 seconds
+                            if (registry != null) {
+                                registry.getBarrelCount(); // Ping to check if still alive
+                            }
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            return;
+                        } catch (Exception e) {
+                            // Gateway down - connection lost
+                            System.err.println("✗ Lost connection to BarrelRegistry! Gateway may have shutdown.");
+                            System.err.println("Will attempt to re-register...");
+                            registered = false;
+                            registry = null;
+                            break; // Exit health monitoring, go back to registration phase
+                        }
+                    }
+                }
+            });
+            registrationThread.setDaemon(false);
+            registrationThread.start();
+
             System.out.println("Storage Barrel " + barrelId + " ready");
+
+            // Add shutdown hook to unregister from registry
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                keepRunning[0] = false; // Stop registration thread
+                try {
+                    IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
+                            .lookup("rmi://localhost/BarrelRegistry");
+                    registry.unregisterBarrel(barrelId);
+                    System.out.println("Barrel " + barrelId + " unregistered from BarrelRegistry");
+                } catch (Exception e) {
+                    // Ignore errors during shutdown
+                }
+            }));
+
+            // Mantém o servidor ativo
+            System.out.println("Press Ctrl+C to stop...");
+            Object lock = new Object();
+            synchronized (lock) {
+                lock.wait(); // Espera indefinidamente
+            }
 
         } catch (Exception e) {
             System.err.println("Barrel exception:");
