@@ -6,6 +6,7 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.net.URI;
 
 /**
  * RPC/RMI Gateway - Porta de entrada para clientes
@@ -48,8 +49,49 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
         System.out.println("Barrel registered. Total barrels: " + barrels.size());
     }
 
+    /**
+     * Validates if a string is a proper URL
+     */
+    private boolean isValidURL(String urlString) {
+        if (urlString == null || urlString.trim().isEmpty()) {
+            return false;
+        }
+
+        try {
+            URI uri = URI.create(urlString);
+
+            // Check if URI is absolute (has scheme)
+            if (!uri.isAbsolute()) {
+                return false;
+            }
+
+            // Check protocol
+            String scheme = uri.getScheme();
+            if (!scheme.equals("http") && !scheme.equals("https")) {
+                return false;
+            }
+
+            // Check host exists
+            String host = uri.getHost();
+            if (host == null || host.trim().isEmpty()) {
+                return false;
+            }
+
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
     @Override
     public void indexURL(String url) throws RemoteException {
+        // Validate URL before processing
+        if (!isValidURL(url)) {
+            System.out.println("Invalid URL rejected: " + url);
+            throw new RemoteException(
+                    "Invalid URL: " + url + ". URL must start with http:// or https:// and have a valid format.");
+        }
+
         System.out.println("Indexing URL (user-submitted): " + url);
         urlQueue.addURL(url, true); // High priority for user-submitted URLs
     }
@@ -121,25 +163,27 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
                 .collect(Collectors.toList());
         stats.setTopSearches(topSearches);
 
-        // Estatísticas dos barrels
+        // Estatísticas dos barrels - use BarrelRegistry instead of old list
         List<BarrelStats> barrelStatsList = new ArrayList<>();
         int totalPages = 0;
 
-        for (IBarrel barrel : barrels) {
-            try {
-                if (barrel.ping()) {
+        try {
+            List<IBarrel> activeBarrels = barrelRegistry.getAllBarrels();
+            for (IBarrel barrel : activeBarrels) {
+                try {
                     BarrelStats bs = barrel.getStats();
                     barrelStatsList.add(bs);
-                    totalPages = Math.max(totalPages, bs.getIndexSize());
+                    totalPages += bs.getIndexSize(); // Sum all pages across barrels
+                } catch (Exception e) {
+                    System.err.println("Failed to get stats from barrel: " + e.getMessage());
                 }
-            } catch (Exception e) {
-                System.err.println("Failed to get stats from barrel: " + e.getMessage());
             }
+        } catch (Exception e) {
+            System.err.println("Failed to get barrels from registry: " + e.getMessage());
         }
 
         stats.setBarrelStats(barrelStatsList);
         stats.setTotalIndexedPages(totalPages);
-        stats.setActiveDownloaders(0); // TODO: implementar tracking de downloaders
 
         return stats;
     }
@@ -211,6 +255,12 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
     }
 
     @Override
+    public boolean tryMarkAsVisited(String url) throws RemoteException {
+        // Atomic check-and-mark operation
+        return visitedUrls.markAsVisited(url);
+    }
+
+    @Override
     public void addDiscoveredURL(String url, boolean highPriority) throws RemoteException {
         urlQueue.addURL(url, highPriority);
     }
@@ -242,8 +292,9 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
             System.out.println("Waiting for barrels to register themselves...");
 
             // Thread para imprimir status da fila e barrels registrados a cada 5 segundos
+            final boolean[] keepRunning = { true };
             Thread statusThread = new Thread(() -> {
-                while (true) {
+                while (keepRunning[0]) {
                     try {
                         Thread.sleep(5000); // 5 segundos
                         int queueSize = gateway.urlQueue.size();
@@ -264,6 +315,31 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
             });
             statusThread.setDaemon(true); // Thread daemon para não impedir shutdown
             statusThread.start();
+
+            // Add shutdown hook for clean exit
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.out.println("\n\nShutting down Gateway...");
+                keepRunning[0] = false;
+
+                try {
+                    // Unbind from RMI registry
+                    java.rmi.Naming.unbind("rmi://localhost/Gateway");
+                    java.rmi.Naming.unbind("rmi://localhost/BarrelRegistry");
+                    System.out.println("Unbound from RMI registry");
+                } catch (Exception e) {
+                    // Ignore errors during shutdown
+                }
+
+                try {
+                    // Unexport the gateway
+                    UnicastRemoteObject.unexportObject(gateway, true);
+                    System.out.println("Gateway unexported");
+                } catch (Exception e) {
+                    // Ignore errors during shutdown
+                }
+
+                System.out.println("Gateway shutdown complete. Goodbye!");
+            }));
 
             // Mantém o servidor ativo
             System.out.println("Press Ctrl+C to stop...");

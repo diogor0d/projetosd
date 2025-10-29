@@ -8,8 +8,9 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import java.net.URL;
+import java.net.URI;
 import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * Downloader - Web Crawler que obtém e processa páginas
@@ -20,8 +21,15 @@ public class Downloader implements Runnable {
     private String downloaderId;
     private IGateway gateway; // Use Gateway via RMI instead of direct objects
     private List<IBarrel> barrels;
-    private boolean running;
+    private volatile boolean running; // volatile for thread visibility
     private boolean debugMode; // Debug mode slows down processing
+
+    // Multi-threading support
+    private ExecutorService threadPool;
+    private static final int WORKER_THREADS = 5;
+
+    // Thread-safe tracking of URLs being processed to prevent duplicates
+    private Set<String> processingUrls;
 
     private static final int MAX_DEPTH = 3; // Profundidade máxima de crawling
     private static final int TIMEOUT = 5000; // Timeout para conexões (ms)
@@ -35,9 +43,26 @@ public class Downloader implements Runnable {
         this.running = true;
         this.debugMode = debugMode;
 
+        // Create thread pool with named threads
+        ThreadFactory namedThreadFactory = new ThreadFactory() {
+            private int threadCount = 0;
+
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread thread = new Thread(r);
+                thread.setName(downloaderId + "-Worker-" + (++threadCount));
+                return thread;
+            }
+        };
+
+        this.threadPool = Executors.newFixedThreadPool(WORKER_THREADS, namedThreadFactory);
+        this.processingUrls = ConcurrentHashMap.newKeySet(); // Thread-safe set
+
         if (debugMode) {
             System.out.println("[" + downloaderId + "] DEBUG MODE ENABLED - Processing will be slowed down");
         }
+
+        System.out.println("[" + downloaderId + "] Initialized with " + WORKER_THREADS + " worker threads");
     }
 
     // Constructor without debug mode (defaults to false)
@@ -60,7 +85,7 @@ public class Downloader implements Runnable {
 
     @Override
     public void run() {
-        System.out.println("[" + downloaderId + "] Downloader started");
+        System.out.println("[" + downloaderId + "] Downloader started with " + WORKER_THREADS + " worker threads");
 
         while (running) {
             try {
@@ -72,14 +97,31 @@ public class Downloader implements Runnable {
                 }
 
                 // Bloqueia até obter próximo URL via Gateway RMI (sem busy waiting)
-                // System.out.println("[" + downloaderId + "] Waiting for next URL...");
                 String url = gateway.getNextURL(); // Bloqueia até ter URL disponível
 
-                // System.out.println("[" + downloaderId + "] Fetched URL from queue: " + url);
-
-                if (!gateway.isURLVisited(url)) {
-                    processURL(url);
+                // Atomic check-and-mark to prevent duplicate processing within this downloader
+                if (!processingUrls.add(url)) {
+                    // URL already being processed by another thread in THIS downloader
+                    continue;
                 }
+
+                // Submit task to thread pool (non-blocking)
+                threadPool.submit(() -> {
+                    try {
+                        // Atomic check-and-mark with gateway prevents OTHER downloaders from processing
+                        if (gateway.tryMarkAsVisited(url)) {
+                            // Successfully marked as visited - we're the only one processing it
+                            processURL(url);
+                        }
+                        // else: Another downloader already claimed this URL
+                    } catch (Exception e) {
+                        System.err.println(
+                                "[" + downloaderId + "] Worker thread error for " + url + ": " + e.getMessage());
+                    } finally {
+                        // Always remove from processing set when done
+                        processingUrls.remove(url);
+                    }
+                });
 
             } catch (java.rmi.RemoteException e) {
                 // Gateway offline ou problema de rede - exit to trigger reconnection
@@ -94,21 +136,55 @@ public class Downloader implements Runnable {
             }
         }
 
+        // Proper cleanup
+        shutdown();
         System.out.println("[" + downloaderId + "] Downloader stopped");
     }
 
-    private void processURL(String urlStr) {
+    /**
+     * Graceful shutdown of thread pool
+     */
+    private void shutdown() {
+        System.out.println("[" + downloaderId + "] Shutting down thread pool...");
+
+        threadPool.shutdown(); // Stop accepting new tasks
+
         try {
-            System.out.println("[" + downloaderId + "] Processing: " + urlStr);
+            // Wait for existing tasks to complete (with timeout)
+            if (!threadPool.awaitTermination(30, TimeUnit.SECONDS)) {
+                System.err.println("[" + downloaderId + "] Thread pool did not terminate in time, forcing shutdown...");
+                threadPool.shutdownNow(); // Force shutdown
+
+                // Wait again for tasks to respond to cancellation
+                if (!threadPool.awaitTermination(10, TimeUnit.SECONDS)) {
+                    System.err.println("[" + downloaderId + "] Thread pool did not terminate after forced shutdown");
+                }
+            }
+        } catch (InterruptedException e) {
+            System.err.println("[" + downloaderId + "] Shutdown interrupted, forcing shutdown...");
+            threadPool.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
+        System.out.println("[" + downloaderId + "] Thread pool shutdown complete");
+    }
+
+    private void processURL(String urlStr) {
+        // Get thread name for logging
+        String threadName = Thread.currentThread().getName();
+
+        try {
+            System.out.println("[" + downloaderId + "][" + threadName + "] Processing: " + urlStr);
 
             // Debug mode: slow down processing
             if (debugMode) {
-                System.out.println("[" + downloaderId + "] [DEBUG] Sleeping for " + DEBUG_DELAY_MS + "ms...");
+                System.out.println(
+                        "[" + downloaderId + "][" + threadName + "] [DEBUG] Sleeping for " + DEBUG_DELAY_MS + "ms...");
                 Thread.sleep(DEBUG_DELAY_MS);
             }
 
-            // Marca como visitado via Gateway
-            gateway.markURLAsVisited(urlStr);
+            // Note: URL already marked as visited by tryMarkAsVisited() before calling this
+            // method
 
             // Obtém e analisa a página
             Document doc = Jsoup.connect(urlStr)
@@ -130,12 +206,15 @@ public class Downloader implements Runnable {
 
             // Debug mode: slow down before next URL
             if (debugMode) {
-                System.out.println("[" + downloaderId + "] [DEBUG] Finished processing, sleeping before next URL...");
+                System.out.println("[" + downloaderId + "][" + threadName
+                        + "] [DEBUG] Finished processing, sleeping before next URL...");
                 Thread.sleep(DEBUG_DELAY_MS);
             }
 
         } catch (Exception e) {
-            System.err.println("[" + downloaderId + "] Failed to process " + urlStr + ": " + e.getMessage());
+            String threadName2 = Thread.currentThread().getName();
+            System.err.println(
+                    "[" + downloaderId + "][" + threadName2 + "] Failed to process " + urlStr + ": " + e.getMessage());
         }
     }
 
@@ -179,7 +258,7 @@ public class Downloader implements Runnable {
                         indexed = true;
                         successCount++;
                         // System.out.println(
-                        // "[" + downloaderId + "] ✓ Barrel " + (i + 1) + " indexed: " +
+                        // "[" + downloaderId + "] Barrel " + (i + 1) + " indexed: " +
                         // pageInfo.getUrl());
                     } catch (Exception e) {
                         retries++;
@@ -189,7 +268,7 @@ public class Downloader implements Runnable {
                             Thread.sleep(500); // Wait before retry
                         } else {
                             failureCount++;
-                            System.err.println("[" + downloaderId + "] ✗ Failed to index on barrel " + (i + 1)
+                            System.err.println("[" + downloaderId + "] Failed to index on barrel " + (i + 1)
                                     + " after " + maxRetries + " attempts");
                         }
                     }
@@ -198,7 +277,7 @@ public class Downloader implements Runnable {
 
             // Log multicast result
             // if (successCount == allBarrels.size()) {
-            // System.out.println("[" + downloaderId + "] ✓✓✓ MULTICAST SUCCESS: All " +
+            // System.out.println("[" + downloaderId + "] MULTICAST SUCCESS: All " +
             // successCount
             // + " barrels indexed " + pageInfo.getUrl());
             // } else if (successCount > 0) {
@@ -208,7 +287,7 @@ public class Downloader implements Runnable {
             // } else {
             if (successCount == 0) {
                 System.err.println(
-                        "[" + downloaderId + "] ✗✗✗ MULTICAST FAILED: No barrels indexed " + pageInfo.getUrl());
+                        "[" + downloaderId + "] MULTICAST FAILED: No barrels indexed " + pageInfo.getUrl());
             } else if (successCount < allBarrels.size()) {
                 System.err.println("[" + downloaderId + "] ⚠ PARTIAL SUCCESS: " + successCount + "/" + allBarrels.size()
                         + " barrels indexed " + pageInfo.getUrl());
@@ -246,7 +325,7 @@ public class Downloader implements Runnable {
         // Extrai palavras do texto
         String[] words = bodyText.toLowerCase().split("\\W+");
         for (String word : words) {
-            if (word.length() > 2) { // Ignora palavras muito curtas
+            if (!word.isEmpty()) { // Apenas ignora strings vazias
                 pageInfo.addWord(word);
             }
         }
@@ -269,14 +348,18 @@ public class Downloader implements Runnable {
 
     private boolean isValidURL(String url) {
         try {
-            URL u = new URL(url);
-            return u.getProtocol().startsWith("http") && !url.contains("#");
+            URI uri = URI.create(url);
+            String scheme = uri.getScheme();
+            return scheme != null &&
+                    scheme.startsWith("http") &&
+                    !url.contains("#");
         } catch (Exception e) {
             return false;
         }
     }
 
     public void stop() {
+        System.out.println("[" + downloaderId + "] Stop requested");
         running = false;
     }
 
@@ -310,6 +393,25 @@ public class Downloader implements Runnable {
 
         final boolean debug = debugMode;
 
+        // Reference to current downloader for shutdown hook
+        final Downloader[] currentDownloader = new Downloader[1];
+
+        // Add shutdown hook for graceful termination
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("\n=== Shutdown signal received ===");
+            if (currentDownloader[0] != null) {
+                System.out.println("Initiating graceful shutdown...");
+                currentDownloader[0].stop();
+                // Give it a moment to shutdown cleanly
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            System.out.println("=== Shutdown complete ===");
+        }));
+
         // Continuous connection manager - handles reconnection on Gateway shutdown
         while (true) {
             IGateway gateway = null;
@@ -322,7 +424,7 @@ public class Downloader implements Runnable {
                     // Verify connection is actually alive
                     tempGateway.getSystemStats(); // Test call to verify connectivity
                     gateway = tempGateway;
-                    System.out.println("✓ Connected to Gateway");
+                    System.out.println("Connected to Gateway");
                 } catch (Exception e) {
                     System.err.println("Connection attempt with gateway failed. Retrying in 3 seconds...");
                     try {
@@ -346,6 +448,7 @@ public class Downloader implements Runnable {
             // Phase 2: Run downloader until Gateway connection fails
             try {
                 Downloader downloader = new Downloader("Downloader-1", gateway, debug);
+                currentDownloader[0] = downloader; // Store reference for shutdown hook
                 System.out.println("Downloader waiting for URLs to process...");
 
                 Thread thread = new Thread(downloader);
@@ -354,11 +457,13 @@ public class Downloader implements Runnable {
                 // Wait for thread to finish (happens when Gateway connection is lost)
                 thread.join();
 
-                System.err.println("✗ Lost connection to Gateway!");
+                System.err.println("Lost connection to Gateway!");
                 System.err.println("Will attempt to reconnect...");
 
             } catch (Exception e) {
                 System.err.println("Downloader error: " + e.getMessage());
+            } finally {
+                currentDownloader[0] = null; // Clear reference
             }
 
             // Small delay before reconnection attempt

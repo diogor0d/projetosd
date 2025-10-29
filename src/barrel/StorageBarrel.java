@@ -16,10 +16,10 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     private String barrelId;
 
     // Índice invertido: palavra -> conjunto de URLs
-    private Map<String, Set<String>> invertedIndex;
+    private ConcurrentHashMap<String, ConcurrentHashMap.KeySetView<String, Boolean>> invertedIndex;
 
     // Informação completa sobre cada página: URL -> PageInfo
-    private Map<String, PageInfo> pageDatabase;
+    private ConcurrentHashMap<String, PageInfo> pageDatabase;
 
     // Estatísticas
     private List<Long> responseTimes;
@@ -37,30 +37,31 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     }
 
     @Override
-    public synchronized void indexPage(PageInfo pageInfo) throws RemoteException {
+    public void indexPage(PageInfo pageInfo) throws RemoteException {
         String url = pageInfo.getUrl();
 
         System.out.println("[" + barrelId + "] Indexing: " + url);
 
         // Atualiza informação da página
-        if (pageDatabase.containsKey(url)) {
+        PageInfo existing = pageDatabase.get(url);
+        if (existing != null) {
             // Merge de inlinks se a página já existia
-            PageInfo existing = pageDatabase.get(url);
             existing.getInlinks().addAll(pageInfo.getInlinks());
         } else {
             pageDatabase.put(url, pageInfo);
         }
 
-        // Atualiza índice invertido
+        // Atualiza índice invertido - optimized with computeIfAbsent
         for (String word : pageInfo.getWords()) {
-            invertedIndex.putIfAbsent(word.toLowerCase(), ConcurrentHashMap.newKeySet());
-            invertedIndex.get(word.toLowerCase()).add(url);
+            String lowerWord = word.toLowerCase();
+            invertedIndex.computeIfAbsent(lowerWord, k -> ConcurrentHashMap.newKeySet()).add(url);
         }
 
         // Atualiza backlinks (inlinks) das páginas referenciadas
         for (String outlink : pageInfo.getOutlinks()) {
-            if (pageDatabase.containsKey(outlink)) {
-                pageDatabase.get(outlink).addInlink(url);
+            PageInfo outlinkedPage = pageDatabase.get(outlink);
+            if (outlinkedPage != null) {
+                outlinkedPage.addInlink(url);
             }
         }
     }
@@ -134,7 +135,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     @Override
     public BarrelStats getStats() throws RemoteException {
         double avgTime = responseTimes.isEmpty() ? 0.0
-                : responseTimes.stream().mapToLong(Long::longValue).average().orElse(0.0) / 100.0;
+                : responseTimes.stream().mapToLong(Long::longValue).average().orElse(0.0);
 
         return new BarrelStats(barrelId, pageDatabase.size(), avgTime);
     }
@@ -189,17 +190,17 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 System.out.println("Starting BarrelRegistry connection manager...");
                 while (keepRunning[0]) {
                     boolean registered = false;
-                    IBarrelRegistry registry = null;
 
                     // Phase 1: Initial registration (retry until successful)
                     System.out.println("Attempting to register with BarrelRegistry...");
                     while (!registered && keepRunning[0]) {
                         try {
-                            registry = (IBarrelRegistry) java.rmi.Naming
+                            // Get fresh registry reference each time
+                            IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
                                     .lookup("rmi://localhost/BarrelRegistry");
                             registry.registerBarrel(barrelId, barrel);
                             registered = true;
-                            System.out.println("✓ Storage Barrel " + barrelId + " registered with BarrelRegistry");
+                            System.out.println("Storage Barrel " + barrelId + " registered with BarrelRegistry");
                         } catch (Exception e) {
                             System.err.println("Connection attempt to Gateway failed. Retrying in 3 seconds...");
                             try {
@@ -215,18 +216,18 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     while (registered && keepRunning[0]) {
                         try {
                             Thread.sleep(5000); // Check every 5 seconds
-                            if (registry != null) {
-                                registry.getBarrelCount(); // Ping to check if still alive
-                            }
+                            // Get fresh registry reference for each ping
+                            IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
+                                    .lookup("rmi://localhost/BarrelRegistry");
+                            registry.getBarrelCount(); // Ping to check if still alive
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
                             return;
                         } catch (Exception e) {
                             // Gateway down - connection lost
-                            System.err.println("✗ Lost connection to BarrelRegistry! Gateway may have shutdown.");
+                            System.err.println("Lost connection to BarrelRegistry! Gateway may have shutdown.");
                             System.err.println("Will attempt to re-register...");
                             registered = false;
-                            registry = null;
                             break; // Exit health monitoring, go back to registration phase
                         }
                     }
@@ -239,15 +240,35 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
             // Add shutdown hook to unregister from registry
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.out.println("\n\nShutting down Barrel " + barrelId + "...");
                 keepRunning[0] = false; // Stop registration thread
+
                 try {
                     IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
                             .lookup("rmi://localhost/BarrelRegistry");
                     registry.unregisterBarrel(barrelId);
-                    System.out.println("Barrel " + barrelId + " unregistered from BarrelRegistry");
+                    System.out.println("Unregistered from BarrelRegistry");
                 } catch (Exception e) {
                     // Ignore errors during shutdown
                 }
+
+                try {
+                    // Unbind from RMI registry
+                    java.rmi.Naming.unbind("rmi://localhost/Barrel" + barrelId);
+                    System.out.println("Unbound from RMI registry");
+                } catch (Exception e) {
+                    // Ignore errors during shutdown
+                }
+
+                try {
+                    // Unexport the barrel
+                    UnicastRemoteObject.unexportObject(barrel, true);
+                    System.out.println("Barrel unexported");
+                } catch (Exception e) {
+                    // Ignore errors during shutdown
+                }
+
+                System.out.println("Barrel " + barrelId + " shutdown complete. Goodbye!");
             }));
 
             // Mantém o servidor ativo

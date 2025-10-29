@@ -2,6 +2,7 @@ package client;
 
 import common.*;
 import java.rmi.Naming;
+import java.rmi.RemoteException;
 import java.util.List;
 import java.util.Scanner;
 
@@ -10,24 +11,99 @@ import java.util.Scanner;
  */
 public class GoogolClient {
 
-    private IGateway gateway;
+    private volatile IGateway gateway; // volatile for thread-safe reconnection
     private Scanner scanner;
+    private volatile boolean connected;
+    private volatile boolean running; // Track if client should keep running
 
-    public GoogolClient() throws Exception {
-        // Conecta à Gateway
-        gateway = (IGateway) Naming.lookup("rmi://localhost/Gateway");
+    public GoogolClient() {
         scanner = new Scanner(System.in);
-        System.out.println("Connected to Googol Gateway");
+        connected = false;
+        running = true;
+
+        // Add shutdown hook for clean exit on Ctrl+C
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            running = false;
+            if (scanner != null) {
+                scanner.close();
+            }
+            System.out.println("\n\nGoodbye!");
+        }));
+    }
+
+    /**
+     * Attempts to connect to gateway indefinitely with retry logic
+     */
+    private void connectToGateway() {
+        System.out.println("Attempting to connect to Gateway...");
+
+        while (!connected) {
+            try {
+                IGateway tempGateway = (IGateway) Naming.lookup("rmi://localhost/Gateway");
+                // Verify connection is alive
+                tempGateway.getSystemStats();
+
+                gateway = tempGateway; // Update reference
+                connected = true;
+                System.out.println("✓ Connected to Googol Gateway");
+
+            } catch (Exception e) {
+                System.err.println("Connection failed. Retrying in 3 seconds...");
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * Executes a gateway operation with automatic reconnection on failure
+     */
+    private <T> T executeWithReconnect(GatewayOperation<T> operation) throws Exception {
+        while (true) {
+            try {
+                if (!connected) {
+                    connectToGateway();
+                }
+                return operation.execute(gateway);
+
+            } catch (RemoteException e) {
+                System.err.println("\n⚠ Lost connection to Gateway!");
+                connected = false;
+                gateway = null; // Clear old reference
+                System.out.println("Reconnecting...");
+                connectToGateway();
+                // Retry operation after reconnection
+            }
+        }
+    }
+
+    /**
+     * Functional interface for gateway operations
+     */
+    @FunctionalInterface
+    private interface GatewayOperation<T> {
+        T execute(IGateway gateway) throws Exception;
     }
 
     public void run() {
-        boolean running = true;
+        // Initial connection
+        connectToGateway();
 
         while (running) {
-            printMenu();
-            String choice = scanner.nextLine().trim();
-
             try {
+                printMenu();
+
+                // Check if scanner has input available (prevents exception on Ctrl+C)
+                if (!scanner.hasNextLine()) {
+                    break;
+                }
+
+                String choice = scanner.nextLine().trim();
+
                 switch (choice) {
                     case "1":
                         indexURL();
@@ -50,16 +126,24 @@ public class GoogolClient {
                     default:
                         System.out.println("Invalid option!");
                 }
+
+                System.out.println();
+
+            } catch (java.util.NoSuchElementException e) {
+                // Scanner closed (Ctrl+C pressed) - exit gracefully
+                break;
             } catch (Exception e) {
                 System.err.println("Error: " + e.getMessage());
-                e.printStackTrace();
+                System.out.println();
             }
-
-            System.out.println();
         }
 
-        scanner.close();
-        System.out.println("Goodbye!");
+        if (scanner != null && !Thread.currentThread().isInterrupted()) {
+            scanner.close();
+        }
+        if (running) {
+            System.out.println("Goodbye!");
+        }
     }
 
     private void printMenu() {
@@ -81,8 +165,13 @@ public class GoogolClient {
             url = "https://" + url;
         }
 
-        gateway.indexURL(url);
-        System.out.println("URL submitted for indexing: " + url);
+        final String finalUrl = url;
+        executeWithReconnect(gw -> {
+            gw.indexURL(finalUrl);
+            return null;
+        });
+
+        System.out.println("URL submitted for indexing: " + finalUrl);
     }
 
     private void search() throws Exception {
@@ -98,7 +187,8 @@ public class GoogolClient {
         boolean searching = true;
 
         while (searching) {
-            List<SearchResult> results = gateway.search(query, currentPage);
+            final int page = currentPage;
+            List<SearchResult> results = executeWithReconnect(gw -> gw.search(query, page));
 
             if (results.isEmpty()) {
                 if (currentPage == 0) {
@@ -148,7 +238,8 @@ public class GoogolClient {
         System.out.print("Enter URL: ");
         String url = scanner.nextLine().trim();
 
-        List<String> inlinks = gateway.getPagesPointingTo(url);
+        final String finalUrl = url;
+        List<String> inlinks = executeWithReconnect(gw -> gw.getPagesPointingTo(finalUrl));
 
         if (inlinks.isEmpty()) {
             System.out.println("\nNo pages point to: " + url);
@@ -161,22 +252,17 @@ public class GoogolClient {
     }
 
     private void showStatistics() throws Exception {
-        SystemStats stats = gateway.getSystemStats();
+        SystemStats stats = executeWithReconnect(gw -> gw.getSystemStats());
         System.out.println("\n" + stats.toString());
     }
 
     private void printURLQueue() throws Exception {
-        String queueStatus = gateway.getURLQueueStatus();
+        String queueStatus = executeWithReconnect(gw -> gw.getURLQueueStatus());
         System.out.println(queueStatus);
     }
 
     public static void main(String[] args) {
-        try {
-            GoogolClient client = new GoogolClient();
-            client.run();
-        } catch (Exception e) {
-            System.err.println("Client exception:");
-            e.printStackTrace();
-        }
+        GoogolClient client = new GoogolClient();
+        client.run();
     }
 }

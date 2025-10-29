@@ -14,7 +14,6 @@ public class SystemStats implements Serializable {
     private List<String> topSearches; // Top 10 pesquisas mais comuns
     private List<BarrelStats> barrelStats;
     private int totalIndexedPages;
-    private int activeDownloaders;
 
     public SystemStats() {
         this.topSearches = new ArrayList<>();
@@ -45,20 +44,12 @@ public class SystemStats implements Serializable {
         this.totalIndexedPages = totalIndexedPages;
     }
 
-    public int getActiveDownloaders() {
-        return activeDownloaders;
-    }
-
-    public void setActiveDownloaders(int activeDownloaders) {
-        this.activeDownloaders = activeDownloaders;
-    }
-
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("=== SYSTEM STATISTICS ===\n");
         sb.append("Total Indexed Pages: ").append(totalIndexedPages).append("\n");
-        sb.append("Active Downloaders: ").append(activeDownloaders).append("\n\n");
+        sb.append("Active Barrels: ").append(barrelStats.size()).append("\n\n");
 
         sb.append("Top 10 Searches:\n");
         for (int i = 0; i < topSearches.size(); i++) {

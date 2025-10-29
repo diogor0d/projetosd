@@ -10,7 +10,7 @@ public class BarrelStats implements Serializable {
 
     private String barrelId;
     private int indexSize;
-    private double avgResponseTime; // Em décimas de segundo
+    private double avgResponseTime; // Em milissegundos
     private boolean active;
 
     public BarrelStats(String barrelId, int indexSize, double avgResponseTime) {
@@ -44,7 +44,7 @@ public class BarrelStats implements Serializable {
     public String toString() {
         return "Barrel " + barrelId +
                 " | Index Size: " + indexSize +
-                " | Avg Response: " + String.format("%.1f", avgResponseTime) + "s" +
+                " | Avg Response: " + String.format("%.3f", avgResponseTime) + "ms" +
                 " | Status: " + (active ? "ACTIVE" : "INACTIVE");
     }
 }
