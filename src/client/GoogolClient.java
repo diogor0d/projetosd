@@ -13,12 +13,12 @@ import java.util.Scanner;
 class Colors {
     // Detect if colors are supported
     private static final boolean COLORS_ENABLED = System.console() != null && System.getenv().get("TERM") != null;
-    
+
     // Helper method to return color code or empty string
     private static String color(String code) {
         return COLORS_ENABLED ? code : "";
     }
-    
+
     // Reset
     public static final String RESET = color("\033[0m");
 
