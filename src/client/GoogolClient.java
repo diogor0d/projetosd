@@ -170,6 +170,15 @@ public class GoogolClient {
                 return operation.execute(gateway);
 
             } catch (RemoteException e) {
+                // Check if this is a validation error (not a connection issue)
+                String errorMsg = e.getMessage();
+                if (errorMsg != null && errorMsg.contains("Invalid URL")) {
+                    // This is a validation error, not a connection problem
+                    // Throw it to the caller to handle
+                    throw e;
+                }
+
+                // Otherwise, it's a connection problem - try to reconnect
                 System.out.println();
                 System.out.println(Colors.BOLD_RED + "⚠ Connection Lost!" + Colors.RESET);
                 connected = false;
@@ -313,13 +322,23 @@ public class GoogolClient {
 
         System.out.println(Colors.YELLOW + "\n⏳ Submitting URL for indexing..." + Colors.RESET);
 
-        executeWithReconnect(gw -> {
-            gw.indexURL(finalUrl);
-            return null;
-        });
+        try {
+            executeWithReconnect(gw -> {
+                gw.indexURL(finalUrl);
+                return null;
+            });
 
-        System.out.println(Colors.BOLD_GREEN + "✓ URL submitted successfully!" + Colors.RESET);
-        System.out.println(Colors.WHITE + "  URL: " + Colors.CYAN + finalUrl + Colors.RESET);
+            System.out.println(Colors.BOLD_GREEN + "✓ URL submitted successfully!" + Colors.RESET);
+            System.out.println(Colors.WHITE + "  URL: " + Colors.CYAN + finalUrl + Colors.RESET);
+        } catch (RemoteException e) {
+            // Handle validation errors from Gateway
+            if (e.getMessage() != null && e.getMessage().contains("Invalid URL")) {
+                System.out.println(Colors.BOLD_RED + "\n❌ Invalid URL!" + Colors.RESET);
+                System.out.println(Colors.RED + "   " + e.getMessage() + Colors.RESET);
+            } else {
+                throw e; // Re-throw other exceptions
+            }
+        }
     }
 
     private void search() throws Exception {

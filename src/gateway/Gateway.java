@@ -77,6 +77,32 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
                 return false;
             }
 
+            // Additional host validation
+            // Reject hosts ending with a dot
+            if (host.endsWith(".")) {
+                return false;
+            }
+
+            // Reject hosts with invalid characters or patterns
+            if (host.startsWith(".") || host.contains("..")) {
+                return false;
+            }
+
+            // Require at least one dot for domain (reject single-word hosts like
+            // "localhost" in production)
+            // But allow IP addresses
+            if (!host.matches(".*\\..*") && !host.matches("\\d+\\.\\d+\\.\\d+\\.\\d+")) {
+                // Single label without dots - only accept "localhost"
+                if (!host.equals("localhost")) {
+                    return false;
+                }
+            }
+
+            // Check for valid domain structure (at least 2 characters in TLD)
+            if (host.matches(".*\\..$") || host.matches(".*\\.$")) {
+                return false; // TLD too short or ends with dot
+            }
+
             return true;
         } catch (IllegalArgumentException e) {
             return false;
@@ -192,28 +218,23 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
      * Seleciona um barrel usando estratégia round-robin
      */
     private synchronized IBarrel selectBarrel() {
-        if (barrels.isEmpty()) {
-            return null;
-        }
+        try {
+            // Get barrels from registry (not the old list)
+            List<IBarrel> activeBarrels = barrelRegistry.getAllBarrels();
 
-        // Remove barrels inativos
-        barrels.removeIf(barrel -> {
-            try {
-                return !barrel.ping();
-            } catch (RemoteException e) {
-                return true; // Remove se não conseguir fazer ping
+            if (activeBarrels.isEmpty()) {
+                return null;
             }
-        });
 
-        if (barrels.isEmpty()) {
+            // Round-robin selection
+            IBarrel selected = activeBarrels.get(currentBarrelIndex % activeBarrels.size());
+            currentBarrelIndex = (currentBarrelIndex + 1) % activeBarrels.size();
+
+            return selected;
+        } catch (Exception e) {
+            System.err.println("Error selecting barrel: " + e.getMessage());
             return null;
         }
-
-        // Round-robin
-        IBarrel selected = barrels.get(currentBarrelIndex);
-        currentBarrelIndex = (currentBarrelIndex + 1) % barrels.size();
-
-        return selected;
     }
 
     public URLQueue getUrlQueue() {
@@ -318,27 +339,36 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
             // Add shutdown hook for clean exit
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                System.out.println("\n\nShutting down Gateway...");
-                keepRunning[0] = false;
-
                 try {
-                    // Unbind from RMI registry
-                    java.rmi.Naming.unbind("rmi://localhost/Gateway");
-                    java.rmi.Naming.unbind("rmi://localhost/BarrelRegistry");
-                    System.out.println("Unbound from RMI registry");
-                } catch (Exception e) {
-                    // Ignore errors during shutdown
-                }
+                    // Flush output streams to avoid Maven/Jansi issues
+                    System.out.flush();
+                    System.err.flush();
 
-                try {
-                    // Unexport the gateway
-                    UnicastRemoteObject.unexportObject(gateway, true);
-                    System.out.println("Gateway unexported");
-                } catch (Exception e) {
-                    // Ignore errors during shutdown
-                }
+                    System.out.println("\n\nShutting down Gateway...");
+                    keepRunning[0] = false;
 
-                System.out.println("Gateway shutdown complete. Goodbye!");
+                    try {
+                        // Unbind from RMI registry
+                        java.rmi.Naming.unbind("rmi://localhost/Gateway");
+                        java.rmi.Naming.unbind("rmi://localhost/BarrelRegistry");
+                        System.out.println("Unbound from RMI registry");
+                    } catch (Exception e) {
+                        // Ignore errors during shutdown
+                    }
+
+                    try {
+                        // Unexport the gateway
+                        UnicastRemoteObject.unexportObject(gateway, true);
+                        System.out.println("Gateway unexported");
+                    } catch (Exception e) {
+                        // Ignore errors during shutdown
+                    }
+
+                    System.out.println("Gateway shutdown complete. Goodbye!");
+                    System.out.flush();
+                } catch (Exception e) {
+                    // Suppress output errors during shutdown (Maven/Jansi issues)
+                }
             }));
 
             // Mantém o servidor ativo

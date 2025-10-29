@@ -364,6 +364,13 @@ public class Downloader implements Runnable {
     }
 
     public static void main(String[] args) {
+        // Parse downloader ID from command-line argument
+        String downloaderId = "Downloader-1"; // Default ID
+        if (args.length > 0 && !args[0].startsWith("--")) {
+            // First argument is the ID (if it doesn't start with --)
+            downloaderId = "Downloader-" + args[0];
+        }
+
         // Load configuration from system.properties
         boolean debugMode = false;
         int debugDelayMs = 1500;
@@ -385,13 +392,17 @@ public class Downloader implements Runnable {
             System.err.println("Warning: Could not load config file. Using defaults.");
         }
 
-        // Command-line argument can override config file
-        if (args.length > 0 && args[0].equalsIgnoreCase("--debug")) {
-            debugMode = true;
-            System.out.println("=== DEBUG MODE ENABLED (from command-line) ===");
+        // Command-line argument can override config file (--debug flag)
+        for (String arg : args) {
+            if (arg.equalsIgnoreCase("--debug")) {
+                debugMode = true;
+                System.out.println("=== DEBUG MODE ENABLED (from command-line) ===");
+                break;
+            }
         }
 
         final boolean debug = debugMode;
+        final String finalDownloaderId = downloaderId;
 
         // Reference to current downloader for shutdown hook
         final Downloader[] currentDownloader = new Downloader[1];
@@ -447,9 +458,9 @@ public class Downloader implements Runnable {
 
             // Phase 2: Run downloader until Gateway connection fails
             try {
-                Downloader downloader = new Downloader("Downloader-1", gateway, debug);
+                Downloader downloader = new Downloader(finalDownloaderId, gateway, debug);
                 currentDownloader[0] = downloader; // Store reference for shutdown hook
-                System.out.println("Downloader waiting for URLs to process...");
+                System.out.println(finalDownloaderId + " waiting for URLs to process...");
 
                 Thread thread = new Thread(downloader);
                 thread.start();
@@ -457,11 +468,11 @@ public class Downloader implements Runnable {
                 // Wait for thread to finish (happens when Gateway connection is lost)
                 thread.join();
 
-                System.err.println("Lost connection to Gateway!");
+                System.err.println(finalDownloaderId + ": Lost connection to Gateway!");
                 System.err.println("Will attempt to reconnect...");
 
             } catch (Exception e) {
-                System.err.println("Downloader error: " + e.getMessage());
+                System.err.println(finalDownloaderId + " error: " + e.getMessage());
             } finally {
                 currentDownloader[0] = null; // Clear reference
             }

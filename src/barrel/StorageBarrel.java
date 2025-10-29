@@ -120,7 +120,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             return new ArrayList<>();
         }
 
-        return results.subList(startIdx, endIdx);
+        // Create a new ArrayList from subList to ensure RMI serialization works
+        return new ArrayList<>(results.subList(startIdx, endIdx));
     }
 
     @Override
@@ -240,35 +241,44 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
             // Add shutdown hook to unregister from registry
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                System.out.println("\n\nShutting down Barrel " + barrelId + "...");
-                keepRunning[0] = false; // Stop registration thread
-
                 try {
-                    IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
-                            .lookup("rmi://localhost/BarrelRegistry");
-                    registry.unregisterBarrel(barrelId);
-                    System.out.println("Unregistered from BarrelRegistry");
-                } catch (Exception e) {
-                    // Ignore errors during shutdown
-                }
+                    // Flush output streams to avoid Maven/Jansi issues
+                    System.out.flush();
+                    System.err.flush();
 
-                try {
-                    // Unbind from RMI registry
-                    java.rmi.Naming.unbind("rmi://localhost/Barrel" + barrelId);
-                    System.out.println("Unbound from RMI registry");
-                } catch (Exception e) {
-                    // Ignore errors during shutdown
-                }
+                    System.out.println("\n\nShutting down Barrel " + barrelId + "...");
+                    keepRunning[0] = false; // Stop registration thread
 
-                try {
-                    // Unexport the barrel
-                    UnicastRemoteObject.unexportObject(barrel, true);
-                    System.out.println("Barrel unexported");
-                } catch (Exception e) {
-                    // Ignore errors during shutdown
-                }
+                    try {
+                        IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
+                                .lookup("rmi://localhost/BarrelRegistry");
+                        registry.unregisterBarrel(barrelId);
+                        System.out.println("Unregistered from BarrelRegistry");
+                    } catch (Exception e) {
+                        // Ignore errors during shutdown
+                    }
 
-                System.out.println("Barrel " + barrelId + " shutdown complete. Goodbye!");
+                    try {
+                        // Unbind from RMI registry
+                        java.rmi.Naming.unbind("rmi://localhost/Barrel" + barrelId);
+                        System.out.println("Unbound from RMI registry");
+                    } catch (Exception e) {
+                        // Ignore errors during shutdown
+                    }
+
+                    try {
+                        // Unexport the barrel
+                        UnicastRemoteObject.unexportObject(barrel, true);
+                        System.out.println("Barrel unexported");
+                    } catch (Exception e) {
+                        // Ignore errors during shutdown
+                    }
+
+                    System.out.println("Barrel " + barrelId + " shutdown complete. Goodbye!");
+                    System.out.flush();
+                } catch (Exception e) {
+                    // Suppress output errors during shutdown (Maven/Jansi issues)
+                }
             }));
 
             // Mantém o servidor ativo
