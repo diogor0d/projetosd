@@ -18,7 +18,6 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
     private Map<String, Integer> searchFrequency; // Tracking de pesquisas mais comuns
     private int currentBarrelIndex; // Para round-robin
     private URLQueue urlQueue;
-    private VisitedURLs visitedUrls;
     private BarrelRegistry barrelRegistry; // Registry for multicast support
 
     // Cache de resultados de pesquisa
@@ -31,7 +30,6 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
         this.currentBarrelIndex = 0;
         this.searchCache = new ConcurrentHashMap<>();
         this.urlQueue = new URLQueue();
-        this.visitedUrls = new VisitedURLs();
         this.barrelRegistry = new BarrelRegistry(); // Initialize barrel registry
 
         System.out.println("Gateway initialized with Barrel Registry");
@@ -168,13 +166,34 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
     @Override
     public List<String> getPagesPointingTo(String url) throws RemoteException {
-        IBarrel barrel = selectBarrel();
+        try {
+            // Query ALL barrels and combine results (data might be distributed)
+            List<IBarrel> activeBarrels = barrelRegistry.getAllBarrels();
 
-        if (barrel == null) {
-            throw new RemoteException("No active barrels available");
+            if (activeBarrels.isEmpty()) {
+                throw new RemoteException("No active barrels available");
+            }
+
+            // Collect inlinks from all barrels and deduplicate
+            Set<String> allInlinks = new HashSet<>();
+
+            for (IBarrel barrel : activeBarrels) {
+                try {
+                    List<String> inlinks = barrel.getInlinks(url);
+                    if (inlinks != null) {
+                        allInlinks.addAll(inlinks);
+                    }
+                } catch (RemoteException e) {
+                    // Skip barrels that fail, continue with others
+                    System.err.println("Failed to get inlinks from barrel: " + e.getMessage());
+                }
+            }
+
+            return new ArrayList<>(allInlinks);
+        } catch (Exception e) {
+            System.err.println("Error getting pages pointing to URL: " + e.getMessage());
+            throw new RemoteException("Error querying barrels for inlinks", e);
         }
-
-        return barrel.getInlinks(url);
     }
 
     @Override
@@ -241,10 +260,6 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
         return urlQueue;
     }
 
-    public VisitedURLs getVisitedUrls() {
-        return visitedUrls;
-    }
-
     @Override
     public String pollURL(long timeout) throws RemoteException {
         try {
@@ -267,18 +282,20 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
     @Override
     public boolean isURLVisited(String url) throws RemoteException {
-        return visitedUrls.isVisited(url);
+        // No longer tracking visited URLs - always return false
+        return false;
     }
 
     @Override
     public boolean markURLAsVisited(String url) throws RemoteException {
-        return visitedUrls.markAsVisited(url);
+        // No longer tracking visited URLs - always return true (success)
+        return true;
     }
 
     @Override
     public boolean tryMarkAsVisited(String url) throws RemoteException {
-        // Atomic check-and-mark operation
-        return visitedUrls.markAsVisited(url);
+        // No longer tracking visited URLs - always return true (success)
+        return true;
     }
 
     @Override
@@ -304,12 +321,13 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
                 System.out.println("Using existing RMI Registry on port 1099");
             }
 
-            java.rmi.Naming.rebind("rmi://localhost/Gateway", gateway);
+            java.rmi.Naming.rebind("rmi://localhost:1099/Gateway", gateway);
 
             // Also bind the barrel registry for direct access
-            java.rmi.Naming.rebind("rmi://localhost/BarrelRegistry", gateway.getBarrelRegistry());
+            java.rmi.Naming.rebind("rmi://localhost:1099/BarrelRegistry", gateway.getBarrelRegistry());
 
-            System.out.println("Gateway and BarrelRegistry ready and listening...");
+            System.out.println("Gateway bound to rmi://localhost:1099/Gateway");
+            System.out.println("BarrelRegistry bound to rmi://localhost:1099/BarrelRegistry");
             System.out.println("Waiting for barrels to register themselves...");
 
             // Thread para imprimir status da fila e barrels registrados a cada 5 segundos
@@ -319,7 +337,6 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
                     try {
                         Thread.sleep(5000); // 5 segundos
                         int queueSize = gateway.urlQueue.size();
-                        int visitedSize = gateway.visitedUrls.size();
                         int barrelCount = 0;
                         try {
                             barrelCount = gateway.barrelRegistry.getBarrelCount();
@@ -327,7 +344,7 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
                             // Ignore
                         }
                         System.out.println(
-                                "[Gateway Status] URL Queue: " + queueSize + " | Visited URLs: " + visitedSize
+                                "[Gateway Status] URL Queue: " + queueSize
                                         + " | Active Barrels: " + barrelCount);
                     } catch (InterruptedException e) {
                         break;

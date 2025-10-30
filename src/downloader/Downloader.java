@@ -1,8 +1,6 @@
 package downloader;
 
 import common.*;
-import gateway.URLQueue;
-import gateway.VisitedURLs;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -70,15 +68,6 @@ public class Downloader implements Runnable {
         this(downloaderId, gateway, false);
     }
 
-    // Legacy constructor for local testing (deprecated)
-    @Deprecated
-    public Downloader(String downloaderId, URLQueue urlQueue, VisitedURLs visitedUrls) {
-        this.downloaderId = downloaderId;
-        this.gateway = null; // Not used in this mode
-        this.barrels = new ArrayList<>();
-        this.running = true;
-    }
-
     public void addBarrel(IBarrel barrel) {
         barrels.add(barrel);
     }
@@ -108,12 +97,8 @@ public class Downloader implements Runnable {
                 // Submit task to thread pool (non-blocking)
                 threadPool.submit(() -> {
                     try {
-                        // Atomic check-and-mark with gateway prevents OTHER downloaders from processing
-                        if (gateway.tryMarkAsVisited(url)) {
-                            // Successfully marked as visited - we're the only one processing it
-                            processURL(url);
-                        }
-                        // else: Another downloader already claimed this URL
+                        // Process URL directly (no visited URL tracking)
+                        processURL(url);
                     } catch (Exception e) {
                         System.err.println(
                                 "[" + downloaderId + "] Worker thread error for " + url + ": " + e.getMessage());
@@ -199,9 +184,7 @@ public class Downloader implements Runnable {
 
             // Adiciona links encontrados à fila (com prioridade normal - crawled)
             for (String link : pageInfo.getOutlinks()) {
-                if (!gateway.isURLVisited(link)) {
-                    gateway.addDiscoveredURL(link, false); // false = prioridade normal (crawled)
-                }
+                gateway.addDiscoveredURL(link, false); // false = prioridade normal (crawled)
             }
 
             // Debug mode: slow down before next URL
@@ -231,9 +214,22 @@ public class Downloader implements Runnable {
             List<IBarrel> allBarrels = registry.getAllBarrels();
 
             if (allBarrels.isEmpty()) {
-                System.err.println("[" + downloaderId + "] WARNING: No barrels registered! Page not indexed: "
-                        + pageInfo.getUrl());
-                return;
+                System.err.println("[" + downloaderId + "] WARNING: No barrels available!");
+                System.err.println("[" + downloaderId + "] Retrying in 2 seconds: " + pageInfo.getUrl());
+
+                // Wait and retry once after 2 seconds
+                Thread.sleep(2000);
+
+                // Try to get barrels again
+                allBarrels = registry.getAllBarrels();
+
+                if (allBarrels.isEmpty()) {
+                    System.err.println("[" + downloaderId + "] CRITICAL: Still no barrels available after retry!");
+                    System.err.println("[" + downloaderId + "] Page data will be LOST: " + pageInfo.getUrl());
+                    return;
+                }
+
+                System.out.println("[" + downloaderId + "] Barrels now available, proceeding with indexing");
             }
 
             // System.out.println(
@@ -288,6 +284,38 @@ public class Downloader implements Runnable {
             if (successCount == 0) {
                 System.err.println(
                         "[" + downloaderId + "] MULTICAST FAILED: No barrels indexed " + pageInfo.getUrl());
+
+                // Only retry if we're not shutting down (check error messages for "shutting
+                // down")
+                // Wait briefly and try ONE more time with a fresh barrel list
+                System.err.println("[" + downloaderId + "] Retrying in 2 seconds...");
+                Thread.sleep(2000);
+
+                // Try again with fresh barrel list
+                List<IBarrel> retryBarrels = registry.getAllBarrels();
+
+                if (!retryBarrels.isEmpty()) {
+                    System.out.println("[" + downloaderId + "] Retrying with " + retryBarrels.size() + " barrel(s)");
+
+                    for (IBarrel barrel : retryBarrels) {
+                        try {
+                            barrel.indexPage(pageInfo);
+                            successCount++;
+                            System.out.println("[" + downloaderId + "] Retry successful for: " + pageInfo.getUrl());
+                            break; // Success on at least one barrel
+                        } catch (Exception retryEx) {
+                            // If barrel is shutting down, don't spam with errors
+                            if (!retryEx.getMessage().contains("shutting down")) {
+                                System.err.println("[" + downloaderId + "] Retry failed: " + retryEx.getMessage());
+                            }
+                        }
+                    }
+                }
+
+                if (successCount == 0) {
+                    System.err.println("[" + downloaderId + "] WARNING: Page data lost after retry: "
+                            + pageInfo.getUrl());
+                }
             } else if (successCount < allBarrels.size()) {
                 System.err.println("[" + downloaderId + "] PARTIAL SUCCESS: " + successCount + "/" + allBarrels.size()
                         + " barrels indexed " + pageInfo.getUrl());

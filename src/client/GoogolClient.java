@@ -65,15 +65,24 @@ public class GoogolClient {
 
         // Add shutdown hook for clean exit on Ctrl+C
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            running = false;
-            if (scanner != null) {
-                scanner.close();
+            try {
+                // Flush output streams to avoid Maven/Jansi issues
+                System.out.flush();
+                System.err.flush();
+
+                running = false;
+                if (scanner != null) {
+                    scanner.close();
+                }
+                // Clear screen and show clean goodbye message
+                System.out.print("\033[H\033[2J");
+                System.out.flush();
+                System.out.println(Colors.BOLD_CYAN + "\n👋 Thank you for using Googol!" + Colors.RESET);
+                System.out.println(Colors.CYAN + "Goodbye!\n" + Colors.RESET);
+                System.out.flush();
+            } catch (Exception e) {
+                // Suppress output errors during shutdown (Maven/Jansi issues)
             }
-            // Clear screen and show clean goodbye message
-            System.out.print("\033[H\033[2J");
-            System.out.flush();
-            System.out.println(Colors.BOLD_CYAN + "\n👋 Thank you for using Googol!" + Colors.RESET);
-            System.out.println(Colors.CYAN + "Goodbye!\n" + Colors.RESET);
         }));
     }
 
@@ -110,6 +119,12 @@ public class GoogolClient {
         System.out.println("║                                                           ║");
         System.out.println("╚═══════════════════════════════════════════════════════════╝");
         System.out.println(Colors.RESET);
+        // sleep for 1.5s
+        try {
+            Thread.sleep(1500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
@@ -170,10 +185,10 @@ public class GoogolClient {
                 return operation.execute(gateway);
 
             } catch (RemoteException e) {
-                // Check if this is a validation error (not a connection issue)
+                // Check if this is a validation/business logic error (not a connection issue)
                 String errorMsg = e.getMessage();
-                if (errorMsg != null && errorMsg.contains("Invalid URL")) {
-                    // This is a validation error, not a connection problem
+                if (errorMsg != null && (errorMsg.contains("Invalid URL") || errorMsg.contains("already indexed"))) {
+                    // This is a validation/business error, not a connection problem
                     // Throw it to the caller to handle
                     throw e;
                 }
@@ -332,9 +347,14 @@ public class GoogolClient {
             System.out.println(Colors.WHITE + "  URL: " + Colors.CYAN + finalUrl + Colors.RESET);
         } catch (RemoteException e) {
             // Handle validation errors from Gateway
-            if (e.getMessage() != null && e.getMessage().contains("Invalid URL")) {
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && errorMsg.contains("Invalid URL")) {
                 System.out.println(Colors.BOLD_RED + "\n❌ Invalid URL!" + Colors.RESET);
-                System.out.println(Colors.RED + "   " + e.getMessage() + Colors.RESET);
+                System.out.println(Colors.RED + "   " + errorMsg + Colors.RESET);
+            } else if (errorMsg != null && errorMsg.contains("already indexed")) {
+                System.out.println(Colors.BOLD_YELLOW + "\n⚠ URL Already Indexed!" + Colors.RESET);
+                System.out.println(
+                        Colors.YELLOW + "   This URL has already been processed by the system." + Colors.RESET);
             } else {
                 throw e; // Re-throw other exceptions
             }
