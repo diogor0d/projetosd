@@ -24,6 +24,12 @@ public class BarrelRegistry extends UnicastRemoteObject implements IBarrelRegist
 
     @Override
     public synchronized void registerBarrel(String barrelId, IBarrel barrel) throws RemoteException {
+        // If barrel already registered, remove old one first
+        if (activeBarrels.containsKey(barrelId)) {
+            System.out.println("[BarrelRegistry] Barrel " + barrelId + " already registered, replacing...");
+            activeBarrels.remove(barrelId);
+        }
+
         // Verify barrel is accessible
         try {
             barrel.ping();

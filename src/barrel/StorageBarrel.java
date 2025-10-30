@@ -305,15 +305,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             String barrelId = args[0];
             StorageBarrel barrel = new StorageBarrel(barrelId);
 
-            // Regista no RMI Registry (ou usa existente)
-            try {
-                java.rmi.registry.LocateRegistry.createRegistry(1099);
-                System.out.println("RMI Registry created on port 1099");
-            } catch (Exception e) {
-                // Registry já existe, continua
-                System.out.println("Using existing RMI Registry on port 1099");
-            }
-
+            // Don't create registry - Gateway should have already created it
+            // Just use the existing registry
             java.rmi.Naming.rebind("rmi://localhost:1099/Barrel" + barrelId, barrel);
 
             System.out.println("Storage Barrel " + barrelId + " bound to RMI registry");
@@ -336,6 +329,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             registry.registerBarrel(barrelId, barrel);
                             registered = true;
                             System.out.println("Storage Barrel " + barrelId + " registered with BarrelRegistry");
+                            System.out.println("Starting health monitoring...");
                         } catch (Exception e) {
                             System.err.println("Connection attempt to Gateway failed. Retrying in 3 seconds...");
                             try {
@@ -348,6 +342,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     }
 
                     // Phase 2: Health monitoring (ping registry periodically)
+                    System.out.println("Entering health monitoring loop...");
                     while (registered && keepRunning[0]) {
                         try {
                             Thread.sleep(5000); // Check every 5 seconds
@@ -355,17 +350,22 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
                                     .lookup("rmi://localhost:1099/BarrelRegistry");
                             registry.getBarrelCount(); // Ping to check if still alive
+                            // If we get here, connection is still good
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
+                            System.out.println("Health monitoring interrupted, exiting...");
                             return;
                         } catch (Exception e) {
                             // Gateway down - connection lost
                             System.err.println("Lost connection to BarrelRegistry! Gateway may have shutdown.");
+                            System.err.println("Error: " + e.getMessage());
                             System.err.println("Will attempt to re-register...");
                             registered = false;
                             break; // Exit health monitoring, go back to registration phase
                         }
                     }
+                    System.out.println("Exited health monitoring loop. registered=" + registered + ", keepRunning="
+                            + keepRunning[0]);
                 }
             });
             registrationThread.setDaemon(false);
