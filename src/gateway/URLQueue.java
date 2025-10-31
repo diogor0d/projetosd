@@ -1,6 +1,8 @@
 package gateway;
 
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Fila de URLs para serem processados pelos Downloaders
@@ -9,9 +11,11 @@ import java.util.concurrent.PriorityBlockingQueue;
 public class URLQueue {
 
     private PriorityBlockingQueue<PriorityURL> queue;
+    private Set<String> urlsInQueue;
 
     public URLQueue() {
         this.queue = new PriorityBlockingQueue<>();
+        this.urlsInQueue = ConcurrentHashMap.newKeySet();
     }
 
     /**
@@ -29,26 +33,33 @@ public class URLQueue {
      *                     automaticamente
      */
     public void addURL(String url, boolean highPriority) {
-        PriorityURL priorityURL = new PriorityURL(url, highPriority);
-        queue.put(priorityURL);
+        // Only add if URL is not already in queue
+        if (urlsInQueue.add(url)) {
+            PriorityURL priorityURL = new PriorityURL(url, highPriority);
+            queue.put(priorityURL);
+        }
     }
 
     public String getNextURL() throws InterruptedException {
         PriorityURL priorityURL = queue.take();
+        urlsInQueue.remove(priorityURL.getUrl());
         return priorityURL.getUrl();
     }
 
     public String pollURL(long timeout, java.util.concurrent.TimeUnit unit) throws InterruptedException {
         PriorityURL priorityURL = queue.poll(timeout, unit);
+        if (priorityURL != null) {
+            urlsInQueue.remove(priorityURL.getUrl());
+        }
         return priorityURL != null ? priorityURL.getUrl() : null;
     }
 
     public int size() {
-        return queue.size();
+        return urlsInQueue.size();
     }
 
     public boolean isEmpty() {
-        return queue.isEmpty();
+        return urlsInQueue.isEmpty();
     }
 
     /**

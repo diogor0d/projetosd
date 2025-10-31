@@ -23,6 +23,15 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
     // Cache de resultados de pesquisa
     private Map<String, List<SearchResult>> searchCache;
 
+    // Visited URLs tracking
+    private Set<String> visitedURLs;
+
+    // Registered remote listeners for pushed system statistics
+    private Set<common.IStatsListener> statsListeners;
+    // Last snapshot sent to listeners (string form) to avoid sending identical
+    // updates. We only push when the stats representation actually changes.
+    private volatile String lastStatsSnapshotString = "";
+
     public Gateway() throws RemoteException {
         super();
         this.barrels = new ArrayList<>();
@@ -31,6 +40,8 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
         this.searchCache = new ConcurrentHashMap<>();
         this.urlQueue = new URLQueue();
         this.barrelRegistry = new BarrelRegistry(); // Initialize barrel registry
+        this.visitedURLs = ConcurrentHashMap.newKeySet(); // Initialize visited URLs set
+        this.statsListeners = ConcurrentHashMap.newKeySet();
 
         System.out.println("Gateway initialized with Barrel Registry");
     }
@@ -40,11 +51,6 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
      */
     public BarrelRegistry getBarrelRegistry() {
         return barrelRegistry;
-    }
-
-    public void registerBarrel(IBarrel barrel) {
-        barrels.add(barrel);
-        System.out.println("Barrel registered. Total barrels: " + barrels.size());
     }
 
     /**
@@ -116,8 +122,15 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
                     "Invalid URL: " + url + ". URL must start with http:// or https:// and have a valid format.");
         }
 
-        System.out.println("Indexing URL (user-submitted): " + url);
+        System.out.println("New user index request: " + url);
         urlQueue.addURL(url, true); // High priority for user-submitted URLs
+        // Notify listeners about stats change (new user-submitted URL affects queue
+        // size)
+        try {
+            notifyStatsListeners(getSystemStats());
+        } catch (Exception e) {
+            // ignore notification failures here
+        }
     }
 
     @Override
@@ -127,6 +140,12 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
         // Atualiza estatísticas de pesquisa
         searchFrequency.merge(normalizedQuery, 1, Integer::sum);
+        // Notify listeners that search frequencies changed
+        try {
+            notifyStatsListeners(getSystemStats());
+        } catch (Exception e) {
+            // ignore
+        }
 
         // Verifica cache
         String cacheKey = normalizedQuery + "_" + page;
@@ -229,6 +248,12 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
         stats.setBarrelStats(barrelStatsList);
         stats.setTotalIndexedPages(totalPages);
+        // Add URL queue size
+        try {
+            stats.setUrlQueueSize(urlQueue.size());
+        } catch (Exception e) {
+            // ignore
+        }
 
         return stats;
     }
@@ -281,31 +306,93 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
     }
 
     @Override
-    public boolean isURLVisited(String url) throws RemoteException {
-        // No longer tracking visited URLs - always return false
-        return false;
-    }
-
-    @Override
-    public boolean markURLAsVisited(String url) throws RemoteException {
-        // No longer tracking visited URLs - always return true (success)
-        return true;
-    }
-
-    @Override
-    public boolean tryMarkAsVisited(String url) throws RemoteException {
-        // No longer tracking visited URLs - always return true (success)
-        return true;
-    }
-
-    @Override
     public void addDiscoveredURL(String url, boolean highPriority) throws RemoteException {
-        urlQueue.addURL(url, highPriority);
+        if (highPriority) {
+            // User request: always add for reindexing, even if already visited
+            urlQueue.addURL(url, true);
+            // Mark as visited (idempotent operation)
+            markURLAsVisited(url);
+            System.out.println("[Gateway] Added high-priority URL to queue: " + url);
+        } else {
+            // Crawled discovery: only add if not previously visited
+            if (tryMarkAsVisited(url)) {
+                urlQueue.addURL(url, false);
+                // System.out.println("[Gateway] Added crawled URL to queue: " + url);
+                try {
+                    notifyStatsListeners(getSystemStats());
+                } catch (Exception e) {
+                    // ignore
+                }
+            } else {
+                // System.out.println("[Gateway] Discarded already visited URL: " + url);
+            }
+        }
+    }
+
+    @Override
+    public void registerStatsListener(common.IStatsListener listener) throws RemoteException {
+        if (listener == null)
+            return;
+        statsListeners.add(listener);
+        // Send initial snapshot
+        try {
+            listener.updateStats(getSystemStats());
+        } catch (Exception e) {
+            System.err.println("Failed to deliver initial stats to listener: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void unregisterStatsListener(common.IStatsListener listener) throws RemoteException {
+        if (listener == null)
+            return;
+        statsListeners.remove(listener);
+    }
+
+    /**
+     * Push the provided stats snapshot to all registered listeners.
+     */
+    private void notifyStatsListeners(SystemStats stats) {
+        // Only send if snapshot changed to ensure clients are updated only on
+        // real changes (no periodic refreshes).
+        String snapshot = stats.toString();
+        if (snapshot.equals(lastStatsSnapshotString)) {
+            return; // nothing changed
+        }
+        lastStatsSnapshotString = snapshot;
+
+        // Copy to avoid concurrent modification while iterating
+        List<common.IStatsListener> copy = new ArrayList<>(statsListeners);
+        for (common.IStatsListener l : copy) {
+            try {
+                l.updateStats(stats);
+            } catch (RemoteException re) {
+                System.err.println("Removing unreachable stats listener: " + re.getMessage());
+                statsListeners.remove(l);
+            } catch (Exception e) {
+                System.err.println("Error sending stats to listener: " + e.getMessage());
+            }
+        }
     }
 
     @Override
     public String getURLQueueStatus() throws RemoteException {
         return urlQueue.getQueueAsString();
+    }
+
+    @Override
+    public boolean isURLVisited(String url) throws RemoteException {
+        return visitedURLs.contains(url);
+    }
+
+    @Override
+    public boolean markURLAsVisited(String url) throws RemoteException {
+        return visitedURLs.add(url);
+    }
+
+    @Override
+    public boolean tryMarkAsVisited(String url) throws RemoteException {
+        return visitedURLs.add(url);
     }
 
     public static void main(String[] args) {
@@ -335,7 +422,7 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
             Thread statusThread = new Thread(() -> {
                 while (keepRunning[0]) {
                     try {
-                        Thread.sleep(5000); // 5 segundos
+                        Thread.sleep(500); // 500 milissegundos
                         int queueSize = gateway.urlQueue.size();
                         int barrelCount = 0;
                         try {
@@ -346,6 +433,12 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
                         System.out.println(
                                 "[Gateway Status] URL Queue: " + queueSize
                                         + " | Active Barrels: " + barrelCount);
+                        // Push periodic stats snapshot to registered listeners
+                        try {
+                            gateway.notifyStatsListeners(gateway.getSystemStats());
+                        } catch (Exception e) {
+                            // Ignore notification errors from status thread
+                        }
                     } catch (InterruptedException e) {
                         break;
                     }

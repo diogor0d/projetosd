@@ -23,15 +23,14 @@ public class Downloader implements Runnable {
     private boolean debugMode; // Debug mode slows down processing
 
     // Multi-threading support
-    private ExecutorService threadPool;
-    private static final int WORKER_THREADS = 5;
+    private ThreadPoolExecutor threadPool;
+    private static int WORKER_THREADS = 5;
+    // Semaphore to reserve processing slots (threads + queue capacity)
+    private Semaphore capacitySemaphore;
 
-    // Thread-safe tracking of URLs being processed to prevent duplicates
-    private Set<String> processingUrls;
-
-    private static final int MAX_DEPTH = 3; // Profundidade máxima de crawling
-    private static final int TIMEOUT = 5000; // Timeout para conexões (ms)
-    private static final int DEBUG_DELAY_MS = 1500; // Delay in debug mode
+    private static int MAX_DEPTH = 3; // Profundidade máxima de crawling
+    private static int TIMEOUT = 5000; // Timeout para conexões (ms)
+    private static int DEBUG_DELAY_MS = 1500; // Delay in debug mode
 
     // Constructor for RMI-based downloader (recommended)
     public Downloader(String downloaderId, IGateway gateway, boolean debugMode) {
@@ -53,8 +52,10 @@ public class Downloader implements Runnable {
             }
         };
 
-        this.threadPool = Executors.newFixedThreadPool(WORKER_THREADS, namedThreadFactory);
-        this.processingUrls = ConcurrentHashMap.newKeySet(); // Thread-safe set
+        this.threadPool = new ThreadPoolExecutor(WORKER_THREADS, WORKER_THREADS, 0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<Runnable>(WORKER_THREADS), namedThreadFactory);
+        // Initialize capacity semaphore: pool threads + queue capacity
+        this.capacitySemaphore = new Semaphore(WORKER_THREADS + WORKER_THREADS);
 
         if (debugMode) {
             System.out.println("[" + downloaderId + "] DEBUG MODE ENABLED - Processing will be slowed down");
@@ -85,26 +86,21 @@ public class Downloader implements Runnable {
                     continue;
                 }
 
+                // Reserve a processing slot (blocks until a thread/queue slot available)
+                capacitySemaphore.acquire();
+
                 // Bloqueia até obter próximo URL via Gateway RMI (sem busy waiting)
                 String url = gateway.getNextURL(); // Bloqueia até ter URL disponível
+                System.out.println("[" + downloaderId + "] Fetched URL from queue: " + url);
 
-                // Atomic check-and-mark to prevent duplicate processing within this downloader
-                if (!processingUrls.add(url)) {
-                    // URL already being processed by another thread in THIS downloader
-                    continue;
-                }
-
-                // Submit task to thread pool (non-blocking)
-                threadPool.submit(() -> {
+                // Submit task to thread pool (blocking enqueue if pool is full)
+                submitBlocking(() -> {
                     try {
                         // Process URL directly (no visited URL tracking)
                         processURL(url);
                     } catch (Exception e) {
                         System.err.println(
                                 "[" + downloaderId + "] Worker thread error for " + url + ": " + e.getMessage());
-                    } finally {
-                        // Always remove from processing set when done
-                        processingUrls.remove(url);
                     }
                 });
 
@@ -154,6 +150,41 @@ public class Downloader implements Runnable {
         System.out.println("[" + downloaderId + "] Thread pool shutdown complete");
     }
 
+    /**
+     * Submit a task to the thread pool, blocking by placing the runnable in the
+     * executor queue if the pool is saturated. This avoids
+     * RejectedExecutionException
+     * and does not busy-wait or sleep.
+     */
+    private void submitBlocking(Runnable task) {
+        // Wrap the task so we release the semaphore permit when it finishes
+        Runnable wrapped = () -> {
+            try {
+                task.run();
+            } finally {
+                capacitySemaphore.release();
+            }
+        };
+
+        try {
+            // Try to hand off to executor first
+            threadPool.execute(wrapped);
+        } catch (RejectedExecutionException rex) {
+            // If rejected, blockingly enqueue into the queue. This will wait until
+            // space becomes available. If interrupted while waiting, release the
+            // permit to avoid leaks and re-interrupt.
+            try {
+                BlockingQueue<Runnable> q = threadPool.getQueue();
+                q.put(wrapped);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                // release permit since task wasn't enqueued
+                capacitySemaphore.release();
+                throw new RuntimeException("Interrupted while enqueueing task", ie);
+            }
+        }
+    }
+
     private void processURL(String urlStr) {
         // Get thread name for logging
         String threadName = Thread.currentThread().getName();
@@ -168,9 +199,6 @@ public class Downloader implements Runnable {
                 Thread.sleep(DEBUG_DELAY_MS);
             }
 
-            // Note: URL already marked as visited by tryMarkAsVisited() before calling this
-            // method
-
             // Obtém e analisa a página
             Document doc = Jsoup.connect(urlStr)
                     .timeout(TIMEOUT)
@@ -178,6 +206,9 @@ public class Downloader implements Runnable {
                     .get();
 
             PageInfo pageInfo = extractPageInfo(urlStr, doc);
+
+            // print page info
+            System.out.println("[" + downloaderId + "][" + threadName + "] Extracted PageInfo: " + pageInfo);
 
             // RMI MULTICAST: Send to all barrels via BarrelRegistry
             multicastToAllBarrels(pageInfo);
@@ -412,8 +443,14 @@ public class Downloader implements Runnable {
             debugMode = Boolean.parseBoolean(props.getProperty("downloader.debug.mode", "false"));
             debugDelayMs = Integer.parseInt(props.getProperty("downloader.debug.delay.ms", "1500"));
 
+            // Load configurable values
+            DEBUG_DELAY_MS = debugDelayMs;
+            TIMEOUT = Integer.parseInt(props.getProperty("downloader.timeout", "5000"));
+            MAX_DEPTH = Integer.parseInt(props.getProperty("downloader.max.depth", "3"));
+            WORKER_THREADS = Integer.parseInt(props.getProperty("downloader.worker.threads", "5"));
+
             if (debugMode) {
-                System.out.println("=== DEBUG MODE ENABLED (from config) ===");
+                System.out.println("=== DEBUG MODE ENABLED (from system.properties) ===");
                 System.out.println("Debug delay: " + debugDelayMs + "ms");
             }
         } catch (Exception e) {
@@ -488,7 +525,6 @@ public class Downloader implements Runnable {
             try {
                 Downloader downloader = new Downloader(finalDownloaderId, gateway, debug);
                 currentDownloader[0] = downloader; // Store reference for shutdown hook
-                System.out.println(finalDownloaderId + " waiting for URLs to process...");
 
                 Thread thread = new Thread(downloader);
                 thread.start();

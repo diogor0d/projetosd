@@ -14,6 +14,7 @@ public class SystemStats implements Serializable {
     private List<String> topSearches; // Top 10 pesquisas mais comuns
     private List<BarrelStats> barrelStats;
     private int totalIndexedPages;
+    private int urlQueueSize;
 
     public SystemStats() {
         this.topSearches = new ArrayList<>();
@@ -44,12 +45,21 @@ public class SystemStats implements Serializable {
         this.totalIndexedPages = totalIndexedPages;
     }
 
+    public int getUrlQueueSize() {
+        return urlQueueSize;
+    }
+
+    public void setUrlQueueSize(int urlQueueSize) {
+        this.urlQueueSize = urlQueueSize;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("=== SYSTEM STATISTICS ===\n");
         sb.append("Total Indexed Pages: ").append(totalIndexedPages).append("\n");
-        sb.append("Active Barrels: ").append(barrelStats.size()).append("\n\n");
+        sb.append("Active Barrels: ").append(barrelStats.size()).append("\n");
+        sb.append("URL Queue Size: ").append(urlQueueSize).append("\n\n");
 
         sb.append("Top 10 Searches:\n");
         for (int i = 0; i < topSearches.size(); i++) {

@@ -30,6 +30,9 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     // Shutdown flag to stop accepting new requests
     private volatile boolean shuttingDown = false;
 
+    // Configuration: whether to use JSON saved index
+    private boolean useJsonIndex;
+
     public StorageBarrel(String barrelId) throws RemoteException {
         super();
         this.barrelId = barrelId;
@@ -38,7 +41,19 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         this.responseTimes = new ArrayList<>();
         this.queryCount = 0;
 
-        System.out.println("Storage Barrel " + barrelId + " initialized");
+        // Load configuration
+        boolean useSavedIndex = true;
+        try {
+            java.util.Properties props = new java.util.Properties();
+            java.io.FileInputStream fis = new java.io.FileInputStream("config/system.properties");
+            props.load(fis);
+            fis.close();
+            useSavedIndex = Boolean.parseBoolean(props.getProperty("barrel.use.saved.index", "true"));
+        } catch (Exception e) {
+            System.err.println("Warning: Could not load config file for barrel. Using defaults.");
+        }
+        this.useJsonIndex = useSavedIndex;
+        System.out.println("Storage Barrel " + barrelId + " initialized (JSON index: " + useJsonIndex + ")");
 
         // Load existing index from disk if available
         loadIndexFromDisk();
@@ -178,6 +193,11 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
      * Saves the index to disk using JSON format (simple and reliable)
      */
     private void saveIndexToDisk() {
+        if (!useJsonIndex) {
+            System.out.println("[" + barrelId + "] JSON index disabled, skipping save to disk");
+            return;
+        }
+
         String filename = "data/barrel_" + barrelId + "_index.json";
         System.out.println("[" + barrelId + "] Saving index to " + filename + "...");
 
@@ -229,6 +249,11 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
      * Loads the index from disk using JSON format
      */
     private void loadIndexFromDisk() {
+        if (!useJsonIndex) {
+            System.out.println("[" + barrelId + "] JSON index disabled, skipping load from disk");
+            return;
+        }
+
         String filename = "data/barrel_" + barrelId + "_index.json";
         File indexFile = new File(filename);
 

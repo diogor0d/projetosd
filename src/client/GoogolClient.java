@@ -3,6 +3,7 @@ package client;
 import common.*;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.List;
 import java.util.Scanner;
 
@@ -486,18 +487,66 @@ public class GoogolClient {
     }
 
     private void showStatistics() throws Exception {
+        // Register a remote stats listener and show real-time pushed updates
         clearScreen();
-        System.out.println(Colors.YELLOW + "⏳ Loading statistics..." + Colors.RESET);
+        System.out.println(Colors.YELLOW + "⏳ Subscribing to live statistics (press Enter to stop)" + Colors.RESET);
 
-        SystemStats stats = executeWithReconnect(gw -> gw.getSystemStats());
+        // Create and export a remote listener
+        IStatsListener listener = new IStatsListenerImpl();
 
-        clearScreen();
-        System.out.println(Colors.BOLD_CYAN + "\n╔═══════════════════════════════════════╗" + Colors.RESET);
-        System.out.println(Colors.BOLD_CYAN + "║" + Colors.BOLD_WHITE + "       SYSTEM STATISTICS           "
-                + Colors.BOLD_CYAN + "║" + Colors.RESET);
-        System.out.println(Colors.BOLD_CYAN + "╚═══════════════════════════════════════╝" + Colors.RESET);
-        System.out.println();
-        System.out.println(Colors.BOLD_WHITE + stats.toString() + Colors.RESET);
+        try {
+            executeWithReconnect(gw -> {
+                gw.registerStatsListener(listener);
+                return null;
+            });
+
+            // Wait until user presses Enter to stop live updates
+            System.out.println();
+            scanner.nextLine();
+
+        } finally {
+            // Unregister and unexport listener
+            try {
+                executeWithReconnect(gw -> {
+                    gw.unregisterStatsListener(listener);
+                    return null;
+                });
+            } catch (Exception e) {
+                // ignore
+            }
+
+            try {
+                UnicastRemoteObject.unexportObject(listener, true);
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+    }
+
+    /**
+     * Simple remote listener implementation that prints incoming stats in real
+     * time.
+     */
+    private class IStatsListenerImpl extends UnicastRemoteObject implements IStatsListener {
+        protected IStatsListenerImpl() throws RemoteException {
+            super();
+        }
+
+        @Override
+        public void updateStats(SystemStats stats) throws RemoteException {
+            // Print stats in a clean screen region
+            synchronized (System.out) {
+                clearScreen();
+                System.out.println(Colors.BOLD_CYAN + "\n╔═══════════════════════════════════════╗" + Colors.RESET);
+                System.out.println(Colors.BOLD_CYAN + "║" + Colors.BOLD_WHITE + "       SYSTEM STATISTICS           "
+                        + Colors.BOLD_CYAN + "║" + Colors.RESET);
+                System.out.println(Colors.BOLD_CYAN + "╚═══════════════════════════════════════╝" + Colors.RESET);
+                System.out.println();
+                System.out.println(Colors.BOLD_WHITE + stats.toString() + Colors.RESET);
+                System.out.println();
+                System.out.print(Colors.YELLOW + "Press Enter to stop live statistics..." + Colors.RESET);
+            }
+        }
     }
 
     private void printURLQueue() throws Exception {
