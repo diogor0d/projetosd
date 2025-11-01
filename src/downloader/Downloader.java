@@ -474,18 +474,27 @@ public class Downloader implements Runnable {
 
         // Add shutdown hook for graceful termination
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("\n=== Shutdown signal received ===");
-            if (currentDownloader[0] != null) {
-                System.out.println("Initiating graceful shutdown...");
-                currentDownloader[0].stop();
-                // Give it a moment to shutdown cleanly
-                try {
-                    Thread.sleep(2000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+            try {
+                // Flush streams first to avoid Maven/Jansi ANSI parsing issues
+                System.out.flush();
+                System.err.flush();
+
+                System.out.println("\n=== Shutdown signal received ===");
+                if (currentDownloader[0] != null) {
+                    System.out.println("Initiating graceful shutdown...");
+                    currentDownloader[0].stop();
+                    // Give it a moment to shutdown cleanly
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
+                System.out.println("=== Shutdown complete ===");
+                System.out.flush();
+            } catch (Exception e) {
+                // Suppress any output errors during shutdown
             }
-            System.out.println("=== Shutdown complete ===");
         }));
 
         // Continuous connection manager - handles reconnection on Gateway shutdown

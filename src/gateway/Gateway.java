@@ -1,6 +1,9 @@
 package gateway;
 
 import common.*;
+import com.google.common.hash.BloomFilter;
+import com.google.common.hash.Funnels;
+import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
@@ -20,11 +23,17 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
     private URLQueue urlQueue;
     private BarrelRegistry barrelRegistry; // Registry for multicast support
 
-    // Cache de resultados de pesquisa
+    // Cache de resultados de pesquisa (LRU with size limit)
     private Map<String, List<SearchResult>> searchCache;
+    private static final int SEARCH_CACHE_SIZE = 1000; // Keep 1000 most popular searches
 
-    // Visited URLs tracking
-    private Set<String> visitedURLs;
+    // Visited URLs tracking using Bloom filter (space-efficient)
+    private BloomFilter<String> visitedURLsBloom;
+    // Recent URLs cache (last 10K) to eliminate false positives from Bloom filter
+    private Map<String, Boolean> recentVisitedURLs;
+    private static final int RECENT_CACHE_SIZE = 10000;
+    private static final int EXPECTED_URLS = 10_000_000; // Expected 10M URLs
+    private static final double FALSE_POSITIVE_RATE = 0.01; // 1% false positive rate
 
     // Registered remote listeners for pushed system statistics
     private Set<common.IStatsListener> statsListeners;
@@ -42,12 +51,40 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
         this.barrels = new ArrayList<>();
         this.searchFrequency = new ConcurrentHashMap<>();
         this.currentBarrelIndex = 0;
-        this.searchCache = new ConcurrentHashMap<>();
+
+        // Initialize search cache with LRU eviction
+        this.searchCache = Collections.synchronizedMap(
+                new LinkedHashMap<String, List<SearchResult>>(SEARCH_CACHE_SIZE + 1, 0.75f, true) {
+                    @Override
+                    protected boolean removeEldestEntry(Map.Entry<String, List<SearchResult>> eldest) {
+                        return size() > SEARCH_CACHE_SIZE;
+                    }
+                });
+
         this.urlQueue = new URLQueue();
         this.barrelRegistry = new BarrelRegistry(); // Initialize barrel registry
-        this.visitedURLs = ConcurrentHashMap.newKeySet(); // Initialize visited URLs set
+
+        // Initialize Bloom filter for visited URLs tracking
+        this.visitedURLsBloom = BloomFilter.create(
+                Funnels.stringFunnel(StandardCharsets.UTF_8),
+                EXPECTED_URLS,
+                FALSE_POSITIVE_RATE);
+
+        // Initialize LRU cache for recent URLs (eliminates false positives)
+        this.recentVisitedURLs = Collections.synchronizedMap(
+                new LinkedHashMap<String, Boolean>(RECENT_CACHE_SIZE + 1, 0.75f, true) {
+                    @Override
+                    protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
+                        return size() > RECENT_CACHE_SIZE;
+                    }
+                });
+
         this.statsListeners = ConcurrentHashMap.newKeySet();
         this.barrelResponseTimes = new ConcurrentHashMap<>();
+
+        System.out.println("[Gateway] Initialized with Bloom filter (expected: " +
+                EXPECTED_URLS + " URLs, FPR: " + (FALSE_POSITIVE_RATE * 100) + "%)");
+        System.out.println("[Gateway] Recent cache size: " + RECENT_CACHE_SIZE + " URLs");
 
         System.out.println("Gateway initialized with Barrel Registry");
     }
@@ -468,17 +505,39 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
     @Override
     public boolean isURLVisited(String url) throws RemoteException {
-        return visitedURLs.contains(url);
+        // Check recent cache first (exact match, no false positives)
+        if (recentVisitedURLs.containsKey(url)) {
+            return true;
+        }
+
+        // Check Bloom filter (can have false positives)
+        return visitedURLsBloom.mightContain(url);
     }
 
     @Override
     public boolean markURLAsVisited(String url) throws RemoteException {
-        return visitedURLs.add(url);
+        // Add to recent cache
+        recentVisitedURLs.put(url, Boolean.TRUE);
+
+        // Add to Bloom filter
+        visitedURLsBloom.put(url);
+
+        // Return true to indicate URL was marked (always succeeds)
+        return true;
     }
 
     @Override
     public boolean tryMarkAsVisited(String url) throws RemoteException {
-        return visitedURLs.add(url);
+        // Check if already visited
+        boolean wasVisited = isURLVisited(url);
+
+        if (!wasVisited) {
+            // Mark as visited if not already
+            markURLAsVisited(url);
+            return true; // Successfully marked (was not visited before)
+        }
+
+        return false; // Was already visited
     }
 
     public static void main(String[] args) {

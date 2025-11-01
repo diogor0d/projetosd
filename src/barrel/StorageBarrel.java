@@ -450,8 +450,23 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             String barrelId = args[0];
             StorageBarrel barrel = new StorageBarrel(barrelId);
 
-            // Don't create registry - Gateway should have already created it
-            // Just use the existing registry
+            // Wait for Gateway to be available before binding
+            System.out.println("Waiting for Gateway to be available...");
+            boolean gatewayAvailable = false;
+
+            while (!gatewayAvailable) {
+                try {
+                    // Try to lookup the Gateway to check if RMI registry exists
+                    java.rmi.Naming.lookup("rmi://localhost:1099/Gateway");
+                    gatewayAvailable = true;
+                    System.out.println("Gateway detected. Proceeding with registration...");
+                } catch (Exception e) {
+                    System.out.println("Gateway not ready yet. Waiting 3 seconds...");
+                    Thread.sleep(3000);
+                }
+            }
+
+            // Now bind to RMI registry (Gateway is running)
             java.rmi.Naming.rebind("rmi://localhost:1099/Barrel" + barrelId, barrel);
 
             System.out.println("Storage Barrel " + barrelId + " bound to RMI registry");

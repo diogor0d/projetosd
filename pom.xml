@@ -37,6 +37,13 @@
             <version>2.10.1</version>
         </dependency>
 
+        <!-- Guava for Bloom filter -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>32.1.3-jre</version>
+        </dependency>
+
         <!-- JUnit 5 para testes -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
