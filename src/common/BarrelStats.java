@@ -12,12 +12,30 @@ public class BarrelStats implements Serializable {
     private int indexSize;
     private double avgResponseTime; // Em milissegundos
     private boolean active;
+    private boolean syncing; // Is this barrel currently syncing?
+    private String syncingFromPeer; // Which peer is providing sync data (null if not syncing)
+    private int syncProgress; // Sync progress percentage (0-100)
 
     public BarrelStats(String barrelId, int indexSize, double avgResponseTime) {
         this.barrelId = barrelId;
         this.indexSize = indexSize;
         this.avgResponseTime = avgResponseTime;
         this.active = true;
+        this.syncing = false;
+        this.syncingFromPeer = null;
+        this.syncProgress = 0;
+    }
+
+    // Constructor with sync information
+    public BarrelStats(String barrelId, int indexSize, double avgResponseTime,
+            boolean syncing, String syncingFromPeer, int syncProgress) {
+        this.barrelId = barrelId;
+        this.indexSize = indexSize;
+        this.avgResponseTime = avgResponseTime;
+        this.active = true;
+        this.syncing = syncing;
+        this.syncingFromPeer = syncingFromPeer;
+        this.syncProgress = syncProgress;
     }
 
     public String getBarrelId() {
@@ -40,11 +58,34 @@ public class BarrelStats implements Serializable {
         this.active = active;
     }
 
+    public boolean isSyncing() {
+        return syncing;
+    }
+
+    public String getSyncingFromPeer() {
+        return syncingFromPeer;
+    }
+
+    public int getSyncProgress() {
+        return syncProgress;
+    }
+
     @Override
     public String toString() {
-        return "Barrel " + barrelId +
-                " | Index Size: " + indexSize +
-                " | Avg Response: " + String.format("%.3f", avgResponseTime) + "ms" +
-                " | Status: " + (active ? "ACTIVE" : "INACTIVE");
+        StringBuilder sb = new StringBuilder();
+        sb.append("Barrel ").append(barrelId);
+        sb.append(" | Index Size: ").append(indexSize);
+        sb.append(" | Avg Response: ").append(String.format("%.3f", avgResponseTime)).append("ms");
+
+        if (syncing && syncingFromPeer != null) {
+            sb.append(" | Status: SYNCING from ").append(syncingFromPeer);
+            sb.append(" (").append(syncProgress).append("%)");
+        } else if (!active) {
+            sb.append(" | Status: INACTIVE");
+        } else {
+            sb.append(" | Status: READY");
+        }
+
+        return sb.toString();
     }
 }

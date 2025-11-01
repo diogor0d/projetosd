@@ -19,6 +19,7 @@ public class PageInfo implements Serializable {
     private Map<String, Integer> termFrequencies; // TF: word -> frequency count (calculated by Downloader)
     private Set<Integer> inlinks; // Document IDs que apontam para esta página (backlinks)
     private Set<Integer> outlinks; // Document IDs para onde esta página aponta
+    private long indexedTimestamp; // Timestamp when page was indexed (milliseconds since epoch)
 
     // Temporary storage for outlink URLs (used by Downloader, sent via RMI, then
     // converted to docIds by barrel)
@@ -31,6 +32,7 @@ public class PageInfo implements Serializable {
         this.inlinks = new HashSet<>();
         this.outlinks = new HashSet<>();
         this.outlinkUrls = new HashSet<>();
+        this.indexedTimestamp = System.currentTimeMillis(); // Set timestamp at creation
     }
 
     // Getters e Setters
@@ -116,6 +118,14 @@ public class PageInfo implements Serializable {
             this.outlinkUrls = new HashSet<>();
         }
         return outlinkUrls;
+    }
+
+    public long getIndexedTimestamp() {
+        return indexedTimestamp;
+    }
+
+    public void setIndexedTimestamp(long indexedTimestamp) {
+        this.indexedTimestamp = indexedTimestamp;
     }
 
     @Override

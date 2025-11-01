@@ -334,9 +334,29 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
                 return null;
             }
 
-            // If only one barrel, return it
-            if (activeBarrels.size() == 1) {
-                return activeBarrels.get(0);
+            // Filter out barrels that are not ready (still syncing)
+            List<IBarrel> readyBarrels = new ArrayList<>();
+            for (IBarrel barrel : activeBarrels) {
+                try {
+                    if (barrel.isReady()) {
+                        readyBarrels.add(barrel);
+                    } else {
+                        System.out.println("[Gateway] Barrel not ready (syncing), skipping...");
+                    }
+                } catch (RemoteException e) {
+                    // If we can't check readiness, skip this barrel
+                    System.err.println("[Gateway] Error checking barrel readiness: " + e.getMessage());
+                }
+            }
+
+            if (readyBarrels.isEmpty()) {
+                System.out.println("[Gateway] No ready barrels available (all syncing)");
+                return null;
+            }
+
+            // If only one ready barrel, return it
+            if (readyBarrels.size() == 1) {
+                return readyBarrels.get(0);
             }
 
             // Response-time based selection: choose barrel with lowest average response
@@ -344,7 +364,7 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
             IBarrel fastestBarrel = null;
             double lowestAvgResponseTime = Double.MAX_VALUE;
 
-            for (IBarrel barrel : activeBarrels) {
+            for (IBarrel barrel : readyBarrels) {
                 int barrelId = System.identityHashCode(barrel);
                 List<Long> responseTimes = barrelResponseTimes.get(barrelId);
 
@@ -370,8 +390,8 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
             // Fallback to round-robin if somehow no barrel was selected
             if (fastestBarrel == null) {
-                fastestBarrel = activeBarrels.get(currentBarrelIndex % activeBarrels.size());
-                currentBarrelIndex = (currentBarrelIndex + 1) % activeBarrels.size();
+                fastestBarrel = readyBarrels.get(currentBarrelIndex % readyBarrels.size());
+                currentBarrelIndex = (currentBarrelIndex + 1) % readyBarrels.size();
             }
 
             return fastestBarrel;

@@ -40,6 +40,13 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     // Stopwords for filtering search queries
     private Set<String> stopwords;
 
+    // Synchronization state
+    private volatile boolean isSyncing = false;
+    private volatile boolean syncCompleted = false;
+    private long barrelStartTimestamp; // When this barrel started (for sync filtering)
+    private volatile String syncPeerBarrelId = null; // Which peer we're syncing from
+    private volatile int syncProgress = 0; // Sync progress percentage (0-100)
+
     public StorageBarrel(String barrelId) throws RemoteException {
         super();
         this.barrelId = barrelId;
@@ -48,6 +55,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         this.nextDocId = new java.util.concurrent.atomic.AtomicInteger(1);
         this.invertedIndex = new ConcurrentHashMap<>();
         this.pageDatabase = new ConcurrentHashMap<>();
+        // barrelStartTimestamp will be set later, right before accepting pages
 
         // Load configuration
         boolean useSavedIndex = true;
@@ -69,6 +77,18 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
         // Load existing index from disk if available
         loadIndexFromDisk();
+
+        // Determine if we need to sync
+        int currentIndexSize = pageDatabase.size();
+        if (currentIndexSize == 0) {
+            // Empty index - will need to sync with peers
+            System.out.println("[" + barrelId + "] Empty index detected, will sync with peers after registration");
+        } else {
+            // Already have data, no sync needed
+            System.out.println(
+                    "[" + barrelId + "] Loaded existing index with " + currentIndexSize + " pages, no sync needed");
+            syncCompleted = true;
+        }
     }
 
     /**
@@ -157,6 +177,17 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     @Override
     public List<SearchResult> search(Set<String> terms, int page) throws RemoteException {
+        // Wait for synchronization to complete before serving searches
+        while (isSyncing) {
+            System.out.println("[" + barrelId + "] Search blocked: synchronization in progress...");
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RemoteException("Search interrupted during sync");
+            }
+        }
+
         // Normalize and filter stopwords from search terms
         Set<String> normalizedTerms = terms.stream()
                 .map(String::toLowerCase)
@@ -294,12 +325,25 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     @Override
     public BarrelStats getStats() throws RemoteException {
         // Response time is now managed by Gateway
-        return new BarrelStats(barrelId, pageDatabase.size(), 0.0);
+        // Include sync status and peer information for live statistics
+        return new BarrelStats(
+                barrelId,
+                pageDatabase.size(),
+                0.0,
+                isSyncing,
+                syncPeerBarrelId,
+                syncProgress);
     }
 
     @Override
     public boolean ping() throws RemoteException {
         return true;
+    }
+
+    @Override
+    public boolean isReady() throws RemoteException {
+        // Barrel is ready if it's not currently syncing
+        return !isSyncing && syncCompleted;
     }
 
     @Override
@@ -516,6 +560,15 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             pageInfo.setTermFrequencies(termFrequencies);
                         }
 
+                        // Restore indexed timestamp (or set to 0 for old data)
+                        if (pageData.get("indexedTimestamp") != null) {
+                            Number timestamp = (Number) pageData.get("indexedTimestamp");
+                            pageInfo.setIndexedTimestamp(timestamp.longValue());
+                        } else {
+                            // Old data without timestamp - set to 0 (ancient past)
+                            pageInfo.setIndexedTimestamp(0);
+                        }
+
                         pageDatabase.put(docId, pageInfo);
 
                         // Debug: Log first 3 loaded pages
@@ -541,6 +594,284 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             e.printStackTrace();
             System.out.println("[" + barrelId + "] Starting with empty index");
         }
+    }
+
+    @Override
+    public String getBarrelId() throws RemoteException {
+        return barrelId;
+    }
+
+    @Override
+    public List<PageInfo> getPageChunkBeforeTimestamp(long beforeTimestamp, int offset, int limit)
+            throws RemoteException {
+        // Optimize: Create a filtered list once (cached for repeated requests with same
+        // timestamp)
+        // This happens in a non-blocking way and allows other requests to proceed
+        List<PageInfo> eligiblePages = new ArrayList<>();
+
+        // Quick, non-blocking snapshot of pages before timestamp
+        for (Map.Entry<Integer, PageInfo> entry : pageDatabase.entrySet()) {
+            PageInfo page = entry.getValue();
+            if (page.getIndexedTimestamp() < beforeTimestamp) {
+                eligiblePages.add(page);
+            }
+        }
+
+        // Return the requested chunk without blocking
+        int startIdx = Math.min(offset, eligiblePages.size());
+        int endIdx = Math.min(offset + limit, eligiblePages.size());
+
+        if (startIdx >= eligiblePages.size()) {
+            return new ArrayList<>();
+        }
+
+        return new ArrayList<>(eligiblePages.subList(startIdx, endIdx));
+    }
+
+    @Override
+    public int getIndexSizeBeforeTimestamp(long beforeTimestamp) throws RemoteException {
+        int count = 0;
+        for (PageInfo page : pageDatabase.values()) {
+            if (page.getIndexedTimestamp() < beforeTimestamp) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    @Override
+    public void bulkImportPages(List<PageInfo> pages) throws RemoteException {
+        System.out.println("[" + barrelId + "] Bulk importing " + pages.size() + " pages...");
+
+        for (PageInfo pageInfo : pages) {
+            try {
+                // Import the page without triggering save
+                indexPageInternal(pageInfo, false);
+            } catch (Exception e) {
+                System.err.println(
+                        "[" + barrelId + "] Error importing page " + pageInfo.getUrl() + ": " + e.getMessage());
+            }
+        }
+
+        System.out.println("[" + barrelId + "] Bulk import complete");
+    }
+
+    /**
+     * Internal indexing method that can optionally skip save operations
+     */
+    private void indexPageInternal(PageInfo pageInfo, boolean triggerSave) throws RemoteException {
+        String url = pageInfo.getUrl();
+        int docId = getOrCreateDocId(url);
+
+        // Convert outlink URLs to docIds
+        Set<Integer> outlinkDocIds = new HashSet<>();
+        for (String outlinkUrl : pageInfo.getOutlinkUrls()) {
+            int outlinkDocId = getOrCreateDocId(outlinkUrl);
+            outlinkDocIds.add(outlinkDocId);
+        }
+
+        // Check if page already exists
+        PageInfo existing = pageDatabase.get(docId);
+        if (existing != null) {
+            // Update existing page
+            existing.setTitle(pageInfo.getTitle());
+            existing.setTextSnippet(pageInfo.getTextSnippet());
+            existing.setWords(pageInfo.getWords());
+            existing.setTermFrequencies(pageInfo.getTermFrequencies());
+            existing.getOutlinks().clear();
+            existing.getOutlinks().addAll(outlinkDocIds);
+        } else {
+            // New page
+            pageInfo.getOutlinks().clear();
+            pageInfo.getOutlinks().addAll(outlinkDocIds);
+            pageDatabase.put(docId, pageInfo);
+        }
+
+        // Update inverted index
+        for (String word : pageInfo.getWords()) {
+            invertedIndex.computeIfAbsent(word, k -> ConcurrentHashMap.newKeySet()).add(docId);
+        }
+
+        // Update backlinks
+        for (Integer outlinkDocId : outlinkDocIds) {
+            PageInfo targetPage = pageDatabase.get(outlinkDocId);
+            if (targetPage != null) {
+                targetPage.addInlink(docId);
+            }
+        }
+
+        if (triggerSave) {
+            saveIndexToDisk();
+        }
+    }
+
+    /**
+     * Synchronizes this barrel's index with a peer barrel in the background.
+     * 
+     * IMPORTANT: This runs in a separate thread and does NOT block the main barrel
+     * thread.
+     * - This barrel can continue accepting new pages from downloaders
+     * - The peer barrel can continue serving searches and accepting pages
+     * - RMI calls to peer are handled by separate RMI threads on the peer
+     * - Both barrels remain fully operational during sync
+     */
+    private void synchronizeWithPeer() {
+        Thread syncThread = new Thread(() -> {
+            try {
+                isSyncing = true;
+                syncProgress = 0;
+                System.out.println("[" + barrelId + "] Starting background synchronization (non-blocking)...");
+
+                // Get reference to barrel registry
+                IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
+                        .lookup("rmi://localhost:1099/BarrelRegistry");
+
+                // Get all barrels
+                List<IBarrel> allBarrels = registry.getAllBarrels();
+
+                // Find the BEST peer barrel to sync from:
+                // 1. Must not be ourselves
+                // 2. Must be ready (not syncing, sync completed)
+                // 3. Must have data (index size > 0)
+                // 4. Prefer barrel with largest index size (most complete data)
+                IBarrel peerBarrel = null;
+                String peerId = null;
+                int largestIndexSize = 0;
+
+                System.out.println("[" + barrelId + "] Evaluating " + allBarrels.size() + " potential peer barrels...");
+
+                for (IBarrel barrel : allBarrels) {
+                    String candidateId = barrel.getBarrelId();
+
+                    // Skip ourselves
+                    if (candidateId.equals(barrelId)) {
+                        continue;
+                    }
+
+                    try {
+                        // Check if this barrel is ready (not syncing)
+                        boolean isReady = barrel.isReady();
+                        if (!isReady) {
+                            System.out.println("[" + barrelId + "]   - Barrel " + candidateId +
+                                    " is not ready (still syncing), skipping");
+                            continue;
+                        }
+
+                        // Check if this barrel has any data
+                        int indexSize = barrel.getIndexSize();
+                        if (indexSize == 0) {
+                            System.out.println("[" + barrelId + "]   - Barrel " + candidateId +
+                                    " has no data, skipping");
+                            continue;
+                        }
+
+                        // This is a valid candidate - check if it's the best one so far
+                        System.out.println("[" + barrelId + "]   - Barrel " + candidateId +
+                                " is ready with " + indexSize + " pages");
+
+                        if (indexSize > largestIndexSize) {
+                            peerBarrel = barrel;
+                            peerId = candidateId;
+                            largestIndexSize = indexSize;
+                        }
+
+                    } catch (Exception e) {
+                        System.err.println("[" + barrelId + "]   - Error checking barrel " + candidateId +
+                                ": " + e.getMessage());
+                        continue;
+                    }
+                }
+
+                if (peerBarrel == null) {
+                    System.out.println("[" + barrelId + "] No suitable peer barrels found (all are syncing or empty)");
+                    System.out.println("[" + barrelId + "] Starting with empty index");
+                    syncCompleted = true;
+                    isSyncing = false;
+                    syncPeerBarrelId = null;
+                    syncProgress = 0;
+                    return;
+                }
+
+                syncPeerBarrelId = peerId; // Store peer ID for statistics
+                System.out.println("[" + barrelId + "] Selected peer barrel: " + peerId +
+                        " (largest index with " + largestIndexSize + " pages)");
+
+                // Get count of pages indexed BEFORE this barrel started (timestamp-based
+                // filtering)
+                int peerSizeBeforeStart = peerBarrel.getIndexSizeBeforeTimestamp(barrelStartTimestamp);
+                System.out.println("[" + barrelId + "] Peer has " + peerSizeBeforeStart
+                        + " pages indexed before barrel start (timestamp: " + barrelStartTimestamp + ")");
+                System.out.println(
+                        "[" + barrelId + "] Starting timestamp-based sync (peer remains fully operational)...");
+
+                if (peerSizeBeforeStart == 0) {
+                    System.out
+                            .println("[" + barrelId + "] No pages to sync, peer index is empty or all pages are newer");
+                    syncCompleted = true;
+                    isSyncing = false;
+                    syncPeerBarrelId = null;
+                    syncProgress = 0;
+                    return;
+                }
+
+                // Sync in chunks, only pages from BEFORE barrel start
+                // Note: Each RMI call is handled by a separate thread on the peer barrel
+                // The peer barrel continues serving other requests in parallel
+                int chunkSize = 100;
+                int offset = 0;
+                int totalSynced = 0;
+
+                while (offset < peerSizeBeforeStart) {
+                    // Request only pages indexed before this barrel started
+                    // This RMI call uses one of the peer's RMI handler threads
+                    // Other threads on the peer can handle searches/indexing simultaneously
+                    List<PageInfo> chunk = peerBarrel.getPageChunkBeforeTimestamp(barrelStartTimestamp, offset,
+                            chunkSize);
+                    if (chunk.isEmpty()) {
+                        break;
+                    }
+
+                    // Import pages locally (happens on this barrel, doesn't affect peer)
+                    bulkImportPages(chunk);
+                    totalSynced += chunk.size();
+                    offset += chunk.size();
+
+                    syncProgress = (int) ((totalSynced * 100.0) / peerSizeBeforeStart);
+                    System.out.println("[" + barrelId + "] Sync progress: " + syncProgress + "% (" + totalSynced + "/"
+                            + peerSizeBeforeStart + ")");
+
+                    // Small delay to be gentle on network and peer resources
+                    Thread.sleep(50); // Reduced from 100ms for faster sync
+                }
+
+                System.out.println("[" + barrelId + "] Synchronization complete! Synced " + totalSynced
+                        + " pages from before barrel start");
+                System.out.println("[" + barrelId + "] Peer barrel remained fully operational during sync");
+                System.out.println(
+                        "[" + barrelId + "] New pages from downloaders (after start) were indexed in parallel");
+                saveIndexToDisk();
+
+                syncCompleted = true;
+                isSyncing = false;
+                syncPeerBarrelId = null;
+                syncProgress = 100;
+
+            } catch (Exception e) {
+                System.err.println("[" + barrelId + "] Synchronization failed: " + e.getMessage());
+                e.printStackTrace();
+                syncCompleted = true; // Mark as complete even if failed, to allow searches
+                isSyncing = false;
+                syncPeerBarrelId = null;
+                syncProgress = 0;
+            }
+        });
+
+        syncThread.setName(barrelId + "-SyncThread");
+        syncThread.setDaemon(true);
+        syncThread.start();
+
+        System.out.println(
+                "[" + barrelId + "] Sync thread started in background, barrel continues accepting new pages...");
     }
 
     public static void main(String[] args) {
@@ -574,6 +905,12 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
             System.out.println("Storage Barrel " + barrelId + " bound to RMI registry");
 
+            // Set the start timestamp NOW - right before accepting page requests
+            // This ensures we only sync pages indexed BEFORE the barrel becomes available
+            barrel.barrelStartTimestamp = System.currentTimeMillis();
+            System.out.println(
+                    "[" + barrelId + "] Barrel ready to accept pages (timestamp: " + barrel.barrelStartTimestamp + ")");
+
             // Register with BarrelRegistry for multicast support - retry until successful
             // and keep monitoring connection health
             final boolean[] keepRunning = { true };
@@ -592,6 +929,13 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             registry.registerBarrel(barrelId, barrel);
                             registered = true;
                             System.out.println("Storage Barrel " + barrelId + " registered with BarrelRegistry");
+
+                            // Trigger synchronization if needed
+                            if (!barrel.syncCompleted) {
+                                System.out.println("[" + barrelId + "] Triggering sync with peer barrels...");
+                                barrel.synchronizeWithPeer();
+                            }
+
                             System.out.println("Starting health monitoring...");
                         } catch (Exception e) {
                             System.err.println("Connection attempt to Gateway failed. Retrying in 3 seconds...");
