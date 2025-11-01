@@ -138,11 +138,18 @@ public class GoogolClient {
         System.out.println(Colors.YELLOW + "🔌 Connecting to Gateway..." + Colors.RESET);
         System.out.println();
 
+        try {
+            Thread.sleep(500); // 1 second delay
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
         int attempts = 0;
         while (!connected) {
             try {
                 attempts++;
-                System.out.print(Colors.CYAN + "   Attempt " + attempts + "... ");
+                System.out.print("\r" + Colors.CYAN + "   Attempt " + attempts + "... ");
+                System.out.flush();
 
                 IGateway tempGateway = (IGateway) Naming.lookup("rmi://localhost/Gateway");
                 // Verify connection is alive
@@ -151,25 +158,29 @@ public class GoogolClient {
                 gateway = tempGateway; // Update reference
                 connected = true;
 
-                System.out.println(Colors.BOLD_GREEN + "✓ Connected!" + Colors.RESET);
+                System.out.print("\r" + Colors.CYAN + "   Attempt " + attempts + "... " + Colors.BOLD_GREEN
+                        + "✓ Connected!" + Colors.RESET);
+                System.out.println();
                 clearScreen();
                 printBanner();
                 System.out.println(Colors.GREEN + "✓ Successfully connected to Googol Gateway" + Colors.RESET);
                 System.out.println();
 
             } catch (Exception e) {
-                System.out.println(Colors.RED + "✗ Failed" + Colors.RESET);
-                System.out.print(Colors.YELLOW + "   Retrying in 3 seconds" + Colors.RESET);
+                System.out.print(Colors.RED + "✗ Failed" + Colors.RESET);
+                System.out.print(Colors.YELLOW + " - Retrying in 3 seconds" + Colors.RESET);
+                System.out.flush();
                 try {
                     for (int i = 0; i < 3; i++) {
                         Thread.sleep(1000);
                         System.out.print(".");
+                        System.out.flush();
                     }
-                    System.out.println();
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     return;
                 }
+                // Don't print newline - let next attempt overwrite this line
             }
         }
     }
@@ -188,13 +199,17 @@ public class GoogolClient {
             } catch (RemoteException e) {
                 // Check if this is a validation/business logic error (not a connection issue)
                 String errorMsg = e.getMessage();
-                if (errorMsg != null && (errorMsg.contains("Invalid URL") || errorMsg.contains("already indexed"))) {
-                    // This is a validation/business error, not a connection problem
-                    // Throw it to the caller to handle
+                if (errorMsg != null && (errorMsg.contains("Invalid URL")
+                        || errorMsg.contains("already indexed")
+                        || errorMsg.contains("No active barrels"))) {
+                    // This is a validation/business error (e.g. no barrels available), not a
+                    // connection problem
+                    // Propagate to the caller so it can display a helpful message instead of
+                    // triggering reconnects
                     throw e;
                 }
 
-                // Otherwise, it's a connection problem - try to reconnect
+                // Otherwise, treat as a connection problem - try to reconnect
                 System.out.println();
                 System.out.println(Colors.BOLD_RED + "⚠ Connection Lost!" + Colors.RESET);
                 connected = false;
@@ -386,7 +401,31 @@ public class GoogolClient {
 
             System.out.println(Colors.YELLOW + "⏳ Searching..." + Colors.RESET);
 
-            List<SearchResult> results = executeWithReconnect(gw -> gw.search(query, page));
+            List<SearchResult> results;
+            try {
+                results = executeWithReconnect(gw -> gw.search(query, page));
+            } catch (RemoteException e) {
+                String errorMsg = e.getMessage();
+                if (errorMsg != null && errorMsg.contains("No active barrels")) {
+                    // Friendly message instead of reconnecting or dumping raw exception
+                    clearScreen();
+                    System.out.println(Colors.YELLOW + "\n😕 No indexed data available yet." + Colors.RESET);
+                    System.out.println(Colors.YELLOW
+                            + "   The system currently has no barrels/indexed pages. Please try again later."
+                            + Colors.RESET);
+                    System.out.println();
+                    System.out.print(Colors.YELLOW + "Press Enter to return to the menu..." + Colors.RESET);
+                    try {
+                        if (scanner.hasNextLine()) {
+                            scanner.nextLine();
+                        }
+                    } catch (Exception ie) {
+                        // Ignore scanner issues
+                    }
+                    break; // return to main menu
+                }
+                throw e;
+            }
 
             clearScreen();
 
@@ -396,6 +435,16 @@ public class GoogolClient {
                             Colors.YELLOW + "\n😕 No results found for: " + Colors.BOLD_WHITE + query + Colors.RESET);
                 } else {
                     System.out.println(Colors.YELLOW + "\n📭 No more results." + Colors.RESET);
+                }
+                // Pause so the user can read the message before returning to the menu
+                System.out.println();
+                System.out.print(Colors.YELLOW + "Press Enter to return to the menu..." + Colors.RESET);
+                try {
+                    if (scanner.hasNextLine()) {
+                        scanner.nextLine();
+                    }
+                } catch (Exception ie) {
+                    // Ignore scanner issues and continue
                 }
                 break;
             }

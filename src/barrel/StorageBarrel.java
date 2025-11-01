@@ -375,8 +375,9 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
         // Debug: Log if there's a significant difference
         if (totalPages - count > 10) {
-            System.out.println("[" + barrelId + "] [DEBUG] getIndexSize: " + count + " pages with content out of " +
-                    totalPages + " total entries (" + (totalPages - count) + " placeholders)");
+            // System.out.println("[" + barrelId + "] [DEBUG] getIndexSize: " + count + "
+            // pages with content out of " + totalPages + " total entries (" + (totalPages -
+            // count) + " placeholders)");
         }
 
         return count;
