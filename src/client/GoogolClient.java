@@ -10,10 +10,13 @@ import java.util.Scanner;
 /**
  * ANSI color codes for terminal colors
  * Auto-disables when colors are not supported (e.g., Maven output)
+ * Set -DforceColor=true or FORCE_COLOR=1 env var to enable colors in Maven
  */
 class Colors {
-    // Detect if colors are supported
-    private static final boolean COLORS_ENABLED = System.console() != null && System.getenv().get("TERM") != null;
+    // Detect if colors are supported or force-enabled
+    private static final boolean COLORS_ENABLED = "true".equalsIgnoreCase(System.getProperty("forceColor")) ||
+            "1".equals(System.getenv("FORCE_COLOR")) ||
+            (System.console() != null && System.getenv().get("TERM") != null);
 
     // Helper method to return color code or empty string
     private static String color(String code) {
