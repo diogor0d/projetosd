@@ -505,7 +505,29 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             }
                         }
 
+                        // Restore termFrequencies (Map<String, Integer>)
+                        if (pageData.get("termFrequencies") != null) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Number> termFreqData = (Map<String, Number>) pageData.get("termFrequencies");
+                            Map<String, Integer> termFrequencies = new HashMap<>();
+                            for (Map.Entry<String, Number> tfEntry : termFreqData.entrySet()) {
+                                termFrequencies.put(tfEntry.getKey(), tfEntry.getValue().intValue());
+                            }
+                            pageInfo.setTermFrequencies(termFrequencies);
+                        }
+
                         pageDatabase.put(docId, pageInfo);
+
+                        // Debug: Log first 3 loaded pages
+                        if (docId <= 3) {
+                            int tfSize = (pageInfo.getTermFrequencies() != null) ? pageInfo.getTermFrequencies().size()
+                                    : 0;
+                            System.out.println("[" + barrelId + "] [DEBUG] Loaded PageInfo docId=" + docId +
+                                    " words=" + pageInfo.getWords().size() +
+                                    " termFreqs=" + tfSize +
+                                    " inlinks=" + pageInfo.getInlinks().size() +
+                                    " outlinks=" + pageInfo.getOutlinks().size());
+                        }
                     }
                 }
 
