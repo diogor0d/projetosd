@@ -158,6 +158,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             existing.setTextSnippet(pageInfo.getTextSnippet());
             existing.setWords(pageInfo.getWords());
             existing.setTermFrequencies(pageInfo.getTermFrequencies()); // Copy term frequencies!
+            existing.setIndexedTimestamp(pageInfo.getIndexedTimestamp()); // Update timestamp to latest
             // Merge inlinks and outlinks
             existing.getInlinks().addAll(pageInfo.getInlinks());
             existing.getOutlinks().addAll(pageInfo.getOutlinks());
