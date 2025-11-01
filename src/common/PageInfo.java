@@ -1,7 +1,9 @@
 package common;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -14,6 +16,7 @@ public class PageInfo implements Serializable {
     private String title;
     private String textSnippet; // Citação de texto
     private Set<String> words; // Palavras encontradas na página
+    private Map<String, Integer> termFrequencies; // TF: word -> frequency count (calculated by Downloader)
     private Set<Integer> inlinks; // Document IDs que apontam para esta página (backlinks)
     private Set<Integer> outlinks; // Document IDs para onde esta página aponta
 
@@ -24,6 +27,7 @@ public class PageInfo implements Serializable {
     public PageInfo(String url) {
         this.url = url;
         this.words = new HashSet<>();
+        this.termFrequencies = new HashMap<>();
         this.inlinks = new HashSet<>();
         this.outlinks = new HashSet<>();
         this.outlinkUrls = new HashSet<>();
@@ -64,6 +68,18 @@ public class PageInfo implements Serializable {
 
     public void addWord(String word) {
         this.words.add(word);
+    }
+
+    public Map<String, Integer> getTermFrequencies() {
+        return termFrequencies;
+    }
+
+    public void setTermFrequencies(Map<String, Integer> termFrequencies) {
+        this.termFrequencies = termFrequencies;
+    }
+
+    public int getTermFrequency(String word) {
+        return termFrequencies.getOrDefault(word, 0);
     }
 
     public Set<Integer> getInlinks() {

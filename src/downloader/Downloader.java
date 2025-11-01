@@ -381,13 +381,20 @@ public class Downloader implements Runnable {
             pageInfo.setTextSnippet(bodyText);
         }
 
-        // Extrai palavras do texto
+        // Extrai palavras e calcula Term Frequency (TF)
         String[] words = bodyText.toLowerCase().split("\\W+");
+        Map<String, Integer> termFrequencies = new HashMap<>();
+
         for (String word : words) {
-            if (!word.isEmpty()) { // Apenas ignora strings vazias
+            if (!word.isEmpty()) {
                 pageInfo.addWord(word);
+                // Count term frequency
+                termFrequencies.put(word, termFrequencies.getOrDefault(word, 0) + 1);
             }
         }
+
+        // Store term frequencies in PageInfo
+        pageInfo.setTermFrequencies(termFrequencies);
 
         // Extrai links
         Elements links = doc.select("a[href]");

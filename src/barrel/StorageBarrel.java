@@ -116,11 +116,21 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             existing.setTitle(pageInfo.getTitle());
             existing.setTextSnippet(pageInfo.getTextSnippet());
             existing.setWords(pageInfo.getWords());
+            existing.setTermFrequencies(pageInfo.getTermFrequencies()); // Copy term frequencies!
             // Merge inlinks and outlinks
             existing.getInlinks().addAll(pageInfo.getInlinks());
             existing.getOutlinks().addAll(pageInfo.getOutlinks());
         } else {
             pageDatabase.put(docId, pageInfo);
+        }
+
+        // Debug: Check if term frequencies were received
+        int tfSize = (pageInfo.getTermFrequencies() != null) ? pageInfo.getTermFrequencies().size() : 0;
+        if (tfSize == 0) {
+            System.out.println("[" + barrelId + "] [WARNING] PageInfo has no term frequencies for: " + url);
+        } else if (docId <= 3) { // Log first 3 pages
+            System.out.println(
+                    "[" + barrelId + "] [DEBUG] Indexed docId=" + docId + " with " + tfSize + " term frequencies");
         }
 
         // Atualiza índice invertido usando document IDs
@@ -166,18 +176,34 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             return new ArrayList<>();
         }
 
-        // Cria resultados e ordena por relevância (número de inlinks)
+        // Total documents for IDF calculation
+        int totalDocs = pageDatabase.size();
+
+        // Calculate TF-IDF score for each result
         List<SearchResult> results = resultDocIds.stream()
                 .map(docId -> {
                     String url = getUrlForDocId(docId);
                     PageInfo pageInfo = pageDatabase.get(docId);
+
+                    // Calculate TF-IDF score for this document
+                    double tfIdfScore = calculateTfIdfScore(pageInfo, normalizedTerms, totalDocs);
+
                     return new SearchResult(
                             url,
                             pageInfo.getTitle() != null ? pageInfo.getTitle() : url,
                             pageInfo.getTextSnippet() != null ? pageInfo.getTextSnippet() : "",
-                            pageInfo.getInlinkCount());
+                            pageInfo.getInlinkCount(),
+                            tfIdfScore);
                 })
-                .sorted((r1, r2) -> Integer.compare(r2.getRelevance(), r1.getRelevance()))
+                // Sort by TF-IDF score (descending), then by inlink count (tie-breaker)
+                .sorted((r1, r2) -> {
+                    int scoreCompare = Double.compare(r2.getTfIdfScore(), r1.getTfIdfScore());
+                    if (scoreCompare != 0) {
+                        return scoreCompare;
+                    }
+                    // Tie-breaker: use inlink count
+                    return Integer.compare(r2.getRelevance(), r1.getRelevance());
+                })
                 .collect(Collectors.toList());
 
         // Paginação (10 resultados por página)
@@ -190,6 +216,41 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
         // Create a new ArrayList from subList to ensure RMI serialization works
         return new ArrayList<>(results.subList(startIdx, endIdx));
+    }
+
+    /**
+     * Calculate TF-IDF score for a document given search terms
+     * 
+     * @param pageInfo  The document
+     * @param terms     Search terms
+     * @param totalDocs Total number of documents in corpus
+     * @return TF-IDF score (sum of TF-IDF for each term)
+     */
+    private double calculateTfIdfScore(PageInfo pageInfo, Set<String> terms, int totalDocs) {
+        double score = 0.0;
+
+        for (String term : terms) {
+            // Get term frequency from PageInfo (calculated by Downloader)
+            int termFreq = pageInfo.getTermFrequency(term);
+
+            if (termFreq == 0) {
+                continue; // Term not in document
+            }
+
+            // TF (normalized): frequency / max frequency in document
+            // Using raw frequency is simpler and works well
+            double tf = termFreq;
+
+            // IDF: log(total docs / docs containing term)
+            Set<Integer> docsWithTerm = invertedIndex.get(term);
+            int docsContainingTerm = (docsWithTerm != null) ? docsWithTerm.size() : 1;
+            double idf = Math.log((double) totalDocs / docsContainingTerm);
+
+            // TF-IDF for this term
+            score += tf * idf;
+        }
+
+        return score;
     }
 
     @Override
@@ -265,12 +326,14 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 docIdToUrlSnapshot = new HashMap<>(docIdToUrl);
                 nextDocIdSnapshot = nextDocId.get();
 
-                // Debug: Check if PageInfo objects have data
+                // Debug: Check if PageInfo objects have data including term frequencies
                 for (Map.Entry<Integer, PageInfo> entry : pageDatabase.entrySet()) {
                     PageInfo pi = entry.getValue();
                     if (entry.getKey() <= 3) { // Log first 3 pages
+                        int tfSize = (pi.getTermFrequencies() != null) ? pi.getTermFrequencies().size() : 0;
                         System.out.println("[" + barrelId + "] [DEBUG] Saving PageInfo docId=" + entry.getKey() +
                                 " words=" + pi.getWords().size() +
+                                " termFreqs=" + tfSize +
                                 " inlinks=" + pi.getInlinks().size() +
                                 " outlinks=" + pi.getOutlinks().size());
                     }

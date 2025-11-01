@@ -417,6 +417,8 @@ public class GoogolClient {
                         + Colors.RESET);
                 System.out.println(Colors.CYAN + "  🔗 " + result.getUrl() + Colors.RESET);
                 System.out.println(Colors.WHITE + "  " + result.getSnippet() + Colors.RESET);
+                System.out.println(Colors.PURPLE + "  📊 Score: " + String.format("%.4f", result.getTfIdfScore())
+                        + " (TF-IDF)" + Colors.RESET);
                 System.out
                         .println(Colors.YELLOW + "  ⭐ Relevance: " + result.getRelevance() + " inlinks" + Colors.RESET);
                 resultNum++;
