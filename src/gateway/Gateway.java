@@ -16,7 +16,7 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
     private List<IBarrel> barrels;
     private Map<String, Integer> searchFrequency; // Tracking de pesquisas mais comuns
-    private int currentBarrelIndex; // Para round-robin
+    private int currentBarrelIndex; // Para round-robin (fallback)
     private URLQueue urlQueue;
     private BarrelRegistry barrelRegistry; // Registry for multicast support
 
@@ -32,6 +32,11 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
     // updates. We only push when the stats representation actually changes.
     private volatile String lastStatsSnapshotString = "";
 
+    // Response time tracking for load balancing
+    // Map: barrel identity hashcode -> list of recent response times (in ms)
+    private Map<Integer, List<Long>> barrelResponseTimes;
+    private static final int MAX_RESPONSE_SAMPLES = 20; // Keep last 10 response times
+
     public Gateway() throws RemoteException {
         super();
         this.barrels = new ArrayList<>();
@@ -42,6 +47,7 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
         this.barrelRegistry = new BarrelRegistry(); // Initialize barrel registry
         this.visitedURLs = ConcurrentHashMap.newKeySet(); // Initialize visited URLs set
         this.statsListeners = ConcurrentHashMap.newKeySet();
+        this.barrelResponseTimes = new ConcurrentHashMap<>();
 
         System.out.println("Gateway initialized with Barrel Registry");
     }
@@ -157,7 +163,7 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
         // Divide query em termos
         Set<String> terms = new HashSet<>(Arrays.asList(normalizedQuery.split("\\s+")));
 
-        // Seleciona barrel (round-robin)
+        // Seleciona barrel (response-time based)
         IBarrel barrel = selectBarrel();
 
         if (barrel == null) {
@@ -165,7 +171,12 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
         }
 
         try {
+            long startTime = System.currentTimeMillis();
             List<SearchResult> results = barrel.search(terms, page);
+            long responseTime = System.currentTimeMillis() - startTime;
+
+            // Record response time for this barrel
+            recordBarrelResponseTime(barrel, responseTime);
 
             // Armazena em cache
             searchCache.put(cacheKey, results);
@@ -227,7 +238,8 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
                 .collect(Collectors.toList());
         stats.setTopSearches(topSearches);
 
-        // Estatísticas dos barrels - use BarrelRegistry instead of old list
+        // Estatísticas dos barrels - use BarrelRegistry and enrich with Gateway's
+        // response time data
         List<BarrelStats> barrelStatsList = new ArrayList<>();
         int totalPages = 0;
 
@@ -236,6 +248,20 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
             for (IBarrel barrel : activeBarrels) {
                 try {
                     BarrelStats bs = barrel.getStats();
+
+                    // Enrich with actual response time from Gateway's tracking
+                    int barrelId = System.identityHashCode(barrel);
+                    List<Long> responseTimes = barrelResponseTimes.get(barrelId);
+
+                    if (responseTimes != null && !responseTimes.isEmpty()) {
+                        double avgResponseTime = responseTimes.stream()
+                                .mapToLong(Long::longValue)
+                                .average()
+                                .orElse(0.0);
+                        // Create new BarrelStats with actual response time
+                        bs = new BarrelStats(bs.getBarrelId(), bs.getIndexSize(), avgResponseTime);
+                    }
+
                     barrelStatsList.add(bs);
                     totalPages += bs.getIndexSize(); // Sum all pages across barrels
                 } catch (Exception e) {
@@ -259,7 +285,8 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
     }
 
     /**
-     * Seleciona um barrel usando estratégia round-robin
+     * Seleciona um barrel usando estratégia de menor tempo de resposta
+     * Falls back to round-robin if no response time data available
      */
     private synchronized IBarrel selectBarrel() {
         try {
@@ -270,15 +297,74 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
                 return null;
             }
 
-            // Round-robin selection
-            IBarrel selected = activeBarrels.get(currentBarrelIndex % activeBarrels.size());
-            currentBarrelIndex = (currentBarrelIndex + 1) % activeBarrels.size();
+            // If only one barrel, return it
+            if (activeBarrels.size() == 1) {
+                return activeBarrels.get(0);
+            }
 
-            return selected;
+            // Response-time based selection: choose barrel with lowest average response
+            // time
+            IBarrel fastestBarrel = null;
+            double lowestAvgResponseTime = Double.MAX_VALUE;
+
+            for (IBarrel barrel : activeBarrels) {
+                int barrelId = System.identityHashCode(barrel);
+                List<Long> responseTimes = barrelResponseTimes.get(barrelId);
+
+                if (responseTimes == null || responseTimes.isEmpty()) {
+                    // No data for this barrel yet - give it a chance (assume it's fast)
+                    // This ensures new barrels get tried
+                    if (fastestBarrel == null) {
+                        fastestBarrel = barrel;
+                        lowestAvgResponseTime = 0; // Optimistic: assume it's very fast
+                    }
+                } else {
+                    // Calculate average response time
+                    double avgResponseTime = responseTimes.stream()
+                            .mapToLong(Long::longValue)
+                            .average()
+                            .getAsDouble();
+                    if (avgResponseTime < lowestAvgResponseTime) {
+                        lowestAvgResponseTime = avgResponseTime;
+                        fastestBarrel = barrel;
+                    }
+                }
+            }
+
+            // Fallback to round-robin if somehow no barrel was selected
+            if (fastestBarrel == null) {
+                fastestBarrel = activeBarrels.get(currentBarrelIndex % activeBarrels.size());
+                currentBarrelIndex = (currentBarrelIndex + 1) % activeBarrels.size();
+            }
+
+            return fastestBarrel;
         } catch (Exception e) {
             System.err.println("Error selecting barrel: " + e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Records the response time for a barrel and maintains a sliding window
+     * of recent response times for load balancing decisions
+     */
+    private void recordBarrelResponseTime(IBarrel barrel, long responseTimeMs) {
+        int barrelId = System.identityHashCode(barrel);
+
+        barrelResponseTimes.compute(barrelId, (k, times) -> {
+            if (times == null) {
+                times = new ArrayList<>();
+            }
+
+            times.add(responseTimeMs);
+
+            // Keep only the last MAX_RESPONSE_SAMPLES measurements
+            if (times.size() > MAX_RESPONSE_SAMPLES) {
+                times.remove(0); // Remove oldest
+            }
+
+            return times;
+        });
     }
 
     public URLQueue getUrlQueue() {

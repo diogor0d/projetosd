@@ -23,10 +23,6 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     // Informação completa sobre cada página: URL -> PageInfo
     private ConcurrentHashMap<String, PageInfo> pageDatabase;
 
-    // Estatísticas
-    private List<Long> responseTimes;
-    private int queryCount;
-
     // Shutdown flag to stop accepting new requests
     private volatile boolean shuttingDown = false;
 
@@ -38,8 +34,6 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         this.barrelId = barrelId;
         this.invertedIndex = new ConcurrentHashMap<>();
         this.pageDatabase = new ConcurrentHashMap<>();
-        this.responseTimes = new ArrayList<>();
-        this.queryCount = 0;
 
         // Load configuration
         boolean useSavedIndex = true;
@@ -86,18 +80,15 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         }
 
         // Atualiza backlinks (inlinks) das páginas referenciadas
+        // Create placeholder PageInfo for pages not yet indexed to track inlinks
         for (String outlink : pageInfo.getOutlinks()) {
-            PageInfo outlinkedPage = pageDatabase.get(outlink);
-            if (outlinkedPage != null) {
-                outlinkedPage.addInlink(url);
-            }
+            PageInfo outlinkedPage = pageDatabase.computeIfAbsent(outlink, k -> new PageInfo(k));
+            outlinkedPage.addInlink(url);
         }
     }
 
     @Override
     public List<SearchResult> search(Set<String> terms, int page) throws RemoteException {
-        long startTime = System.currentTimeMillis();
-
         Set<String> normalizedTerms = terms.stream()
                 .map(String::toLowerCase)
                 .collect(Collectors.toSet());
@@ -141,9 +132,6 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         int startIdx = page * 10;
         int endIdx = Math.min(startIdx + 10, results.size());
 
-        long endTime = System.currentTimeMillis();
-        recordResponseTime(endTime - startTime);
-
         if (startIdx >= results.size()) {
             return new ArrayList<>();
         }
@@ -163,10 +151,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     @Override
     public BarrelStats getStats() throws RemoteException {
-        double avgTime = responseTimes.isEmpty() ? 0.0
-                : responseTimes.stream().mapToLong(Long::longValue).average().orElse(0.0);
-
-        return new BarrelStats(barrelId, pageDatabase.size(), avgTime);
+        // Response time is now managed by Gateway
+        return new BarrelStats(barrelId, pageDatabase.size(), 0.0);
     }
 
     @Override
@@ -177,16 +163,6 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     @Override
     public int getIndexSize() throws RemoteException {
         return pageDatabase.size();
-    }
-
-    private synchronized void recordResponseTime(long timeMs) {
-        responseTimes.add(timeMs);
-        queryCount++;
-
-        // Mantém apenas as últimas 100 medições
-        if (responseTimes.size() > 100) {
-            responseTimes.remove(0);
-        }
     }
 
     /**

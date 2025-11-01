@@ -466,6 +466,10 @@ public class GoogolClient {
             return;
         }
 
+        if (!url.startsWith("http")) {
+            url = "https://" + url;
+        }
+
         final String finalUrl = url;
 
         System.out.println(Colors.YELLOW + "\n⏳ Searching for inlinks..." + Colors.RESET);
