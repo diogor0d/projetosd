@@ -14,14 +14,19 @@ public class PageInfo implements Serializable {
     private String title;
     private String textSnippet; // Citação de texto
     private Set<String> words; // Palavras encontradas na página
-    private Set<String> inlinks; // URLs que apontam para esta página (backlinks)
-    private Set<String> outlinks; // URLs para onde esta página aponta
+    private Set<Integer> inlinks; // Document IDs que apontam para esta página (backlinks)
+    private Set<Integer> outlinks; // Document IDs para onde esta página aponta
+
+    // Temporary storage for outlink URLs (used by Downloader, sent via RMI, then
+    // converted to docIds by barrel)
+    private Set<String> outlinkUrls;
 
     public PageInfo(String url) {
         this.url = url;
         this.words = new HashSet<>();
         this.inlinks = new HashSet<>();
         this.outlinks = new HashSet<>();
+        this.outlinkUrls = new HashSet<>();
     }
 
     // Getters e Setters
@@ -61,24 +66,40 @@ public class PageInfo implements Serializable {
         this.words.add(word);
     }
 
-    public Set<String> getInlinks() {
+    public Set<Integer> getInlinks() {
         return inlinks;
     }
 
-    public void addInlink(String url) {
-        this.inlinks.add(url);
+    public void addInlink(Integer docId) {
+        this.inlinks.add(docId);
     }
 
     public int getInlinkCount() {
         return inlinks.size();
     }
 
-    public Set<String> getOutlinks() {
+    public Set<Integer> getOutlinks() {
         return outlinks;
     }
 
-    public void addOutlink(String url) {
-        this.outlinks.add(url);
+    public void addOutlink(Integer docId) {
+        this.outlinks.add(docId);
+    }
+
+    // Overloaded method for Downloader to add outlinks as URLs (before conversion
+    // to docIds)
+    public void addOutlink(String outlinkUrl) {
+        if (this.outlinkUrls == null) {
+            this.outlinkUrls = new HashSet<>();
+        }
+        this.outlinkUrls.add(outlinkUrl);
+    }
+
+    public Set<String> getOutlinkUrls() {
+        if (this.outlinkUrls == null) {
+            this.outlinkUrls = new HashSet<>();
+        }
+        return outlinkUrls;
     }
 
     @Override

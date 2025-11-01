@@ -214,7 +214,7 @@ public class Downloader implements Runnable {
             multicastToAllBarrels(pageInfo);
 
             // Adiciona links encontrados à fila (com prioridade normal - crawled)
-            for (String link : pageInfo.getOutlinks()) {
+            for (String link : pageInfo.getOutlinkUrls()) {
                 gateway.addDiscoveredURL(link, false); // false = prioridade normal (crawled)
             }
 

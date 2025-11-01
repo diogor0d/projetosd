@@ -5,9 +5,9 @@ import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.io.*;
-import java.nio.file.*;
 
 /**
  * Storage Barrel - Servidor que armazena o índice invertido
@@ -17,11 +17,19 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     private String barrelId;
 
-    // Índice invertido: palavra -> conjunto de URLs
-    private ConcurrentHashMap<String, ConcurrentHashMap.KeySetView<String, Boolean>> invertedIndex;
+    // Document ID system for URL storage optimization
+    // URL -> Document ID
+    private ConcurrentHashMap<String, Integer> urlToDocId;
+    // Document ID -> URL
+    private ConcurrentHashMap<Integer, String> docIdToUrl;
+    // Next available document ID
+    private AtomicInteger nextDocId;
 
-    // Informação completa sobre cada página: URL -> PageInfo
-    private ConcurrentHashMap<String, PageInfo> pageDatabase;
+    // Índice invertido: palavra -> conjunto de Document IDs (instead of URLs)
+    private ConcurrentHashMap<String, ConcurrentHashMap.KeySetView<Integer, Boolean>> invertedIndex;
+
+    // Informação completa sobre cada página: Document ID -> PageInfo
+    private ConcurrentHashMap<Integer, PageInfo> pageDatabase;
 
     // Shutdown flag to stop accepting new requests
     private volatile boolean shuttingDown = false;
@@ -32,6 +40,9 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     public StorageBarrel(String barrelId) throws RemoteException {
         super();
         this.barrelId = barrelId;
+        this.urlToDocId = new ConcurrentHashMap<>();
+        this.docIdToUrl = new ConcurrentHashMap<>();
+        this.nextDocId = new java.util.concurrent.atomic.AtomicInteger(1);
         this.invertedIndex = new ConcurrentHashMap<>();
         this.pageDatabase = new ConcurrentHashMap<>();
 
@@ -53,6 +64,24 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         loadIndexFromDisk();
     }
 
+    /**
+     * Gets or creates a document ID for a URL
+     */
+    private int getOrCreateDocId(String url) {
+        return urlToDocId.computeIfAbsent(url, k -> {
+            int docId = nextDocId.getAndIncrement();
+            docIdToUrl.put(docId, url);
+            return docId;
+        });
+    }
+
+    /**
+     * Gets the URL for a document ID
+     */
+    private String getUrlForDocId(int docId) {
+        return docIdToUrl.get(docId);
+    }
+
     @Override
     public void indexPage(PageInfo pageInfo) throws RemoteException {
         // Reject new indexing requests during shutdown
@@ -61,29 +90,51 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         }
 
         String url = pageInfo.getUrl();
+        int docId = getOrCreateDocId(url);
 
-        System.out.println("[" + barrelId + "] Indexing: " + url);
+        System.out.println("[" + barrelId + "] Indexing: " + url + " (docId=" + docId + ")");
 
-        // Atualiza informação da página
-        PageInfo existing = pageDatabase.get(url);
-        if (existing != null) {
-            // Merge de inlinks se a página já existia
-            existing.getInlinks().addAll(pageInfo.getInlinks());
-        } else {
-            pageDatabase.put(url, pageInfo);
+        // Convert URL outlinks to document IDs (from Downloader)
+        int outlinkCount = 0;
+        for (String outlinkUrl : pageInfo.getOutlinkUrls()) {
+            int outlinkDocId = getOrCreateDocId(outlinkUrl);
+            pageInfo.addOutlink(outlinkDocId);
+            outlinkCount++;
         }
 
-        // Atualiza índice invertido - optimized with computeIfAbsent
+        // Clear outlinkUrls after conversion - no longer needed, saves memory
+        pageInfo.getOutlinkUrls().clear();
+
+        System.out.println("[" + barrelId + "] [DEBUG] Converted " + outlinkCount + " outlinks to docIds. " +
+                "PageInfo now has: words=" + pageInfo.getWords().size() +
+                " outlinks=" + pageInfo.getOutlinks().size());
+
+        // Atualiza informação da página usando document ID
+        PageInfo existing = pageDatabase.get(docId);
+        if (existing != null) {
+            // Update existing page with new content
+            existing.setTitle(pageInfo.getTitle());
+            existing.setTextSnippet(pageInfo.getTextSnippet());
+            existing.setWords(pageInfo.getWords());
+            // Merge inlinks and outlinks
+            existing.getInlinks().addAll(pageInfo.getInlinks());
+            existing.getOutlinks().addAll(pageInfo.getOutlinks());
+        } else {
+            pageDatabase.put(docId, pageInfo);
+        }
+
+        // Atualiza índice invertido usando document IDs
         for (String word : pageInfo.getWords()) {
             String lowerWord = word.toLowerCase();
-            invertedIndex.computeIfAbsent(lowerWord, k -> ConcurrentHashMap.newKeySet()).add(url);
+            invertedIndex.computeIfAbsent(lowerWord, k -> ConcurrentHashMap.newKeySet()).add(docId);
         }
 
         // Atualiza backlinks (inlinks) das páginas referenciadas
         // Create placeholder PageInfo for pages not yet indexed to track inlinks
-        for (String outlink : pageInfo.getOutlinks()) {
-            PageInfo outlinkedPage = pageDatabase.computeIfAbsent(outlink, k -> new PageInfo(k));
-            outlinkedPage.addInlink(url);
+        for (Integer outlinkDocId : pageInfo.getOutlinks()) {
+            String outlinkUrl = getUrlForDocId(outlinkDocId);
+            PageInfo outlinkedPage = pageDatabase.computeIfAbsent(outlinkDocId, k -> new PageInfo(outlinkUrl));
+            outlinkedPage.addInlink(docId);
         }
     }
 
@@ -93,32 +144,33 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 .map(String::toLowerCase)
                 .collect(Collectors.toSet());
 
-        // Encontra URLs que contêm todos os termos
-        Set<String> resultUrls = null;
+        // Encontra Document IDs que contêm todos os termos
+        Set<Integer> resultDocIds = null;
 
         for (String term : normalizedTerms) {
-            Set<String> urlsForTerm = invertedIndex.get(term);
+            Set<Integer> docIdsForTerm = invertedIndex.get(term);
 
-            if (urlsForTerm == null || urlsForTerm.isEmpty()) {
+            if (docIdsForTerm == null || docIdsForTerm.isEmpty()) {
                 // Se algum termo não existe, não há resultados
                 return new ArrayList<>();
             }
 
-            if (resultUrls == null) {
-                resultUrls = new HashSet<>(urlsForTerm);
+            if (resultDocIds == null) {
+                resultDocIds = new HashSet<>(docIdsForTerm);
             } else {
-                resultUrls.retainAll(urlsForTerm); // Interseção
+                resultDocIds.retainAll(docIdsForTerm); // Interseção
             }
         }
 
-        if (resultUrls == null || resultUrls.isEmpty()) {
+        if (resultDocIds == null || resultDocIds.isEmpty()) {
             return new ArrayList<>();
         }
 
         // Cria resultados e ordena por relevância (número de inlinks)
-        List<SearchResult> results = resultUrls.stream()
-                .map(url -> {
-                    PageInfo pageInfo = pageDatabase.get(url);
+        List<SearchResult> results = resultDocIds.stream()
+                .map(docId -> {
+                    String url = getUrlForDocId(docId);
+                    PageInfo pageInfo = pageDatabase.get(docId);
                     return new SearchResult(
                             url,
                             pageInfo.getTitle() != null ? pageInfo.getTitle() : url,
@@ -142,11 +194,22 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     @Override
     public List<String> getInlinks(String url) throws RemoteException {
-        PageInfo pageInfo = pageDatabase.get(url);
+        // Convert URL to document ID
+        Integer docId = urlToDocId.get(url);
+        if (docId == null) {
+            // URL not indexed
+            return new ArrayList<>();
+        }
+
+        PageInfo pageInfo = pageDatabase.get(docId);
         if (pageInfo == null) {
             return new ArrayList<>();
         }
-        return new ArrayList<>(pageInfo.getInlinks());
+
+        // Convert inlink docIds back to URLs for the API
+        return pageInfo.getInlinks().stream()
+                .map(this::getUrlForDocId)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -185,16 +248,33 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             }
 
             // Create snapshot in synchronized block
-            Map<String, Set<String>> invertedIndexSnapshot;
-            Map<String, PageInfo> pageDatabaseSnapshot;
+            Map<String, Set<Integer>> invertedIndexSnapshot;
+            Map<Integer, PageInfo> pageDatabaseSnapshot;
+            Map<String, Integer> urlToDocIdSnapshot;
+            Map<Integer, String> docIdToUrlSnapshot;
+            int nextDocIdSnapshot;
 
             synchronized (this) {
                 invertedIndexSnapshot = new HashMap<>();
-                for (Map.Entry<String, ConcurrentHashMap.KeySetView<String, Boolean>> entry : invertedIndex
+                for (Map.Entry<String, ConcurrentHashMap.KeySetView<Integer, Boolean>> entry : invertedIndex
                         .entrySet()) {
                     invertedIndexSnapshot.put(entry.getKey(), new HashSet<>(entry.getValue()));
                 }
                 pageDatabaseSnapshot = new HashMap<>(pageDatabase);
+                urlToDocIdSnapshot = new HashMap<>(urlToDocId);
+                docIdToUrlSnapshot = new HashMap<>(docIdToUrl);
+                nextDocIdSnapshot = nextDocId.get();
+
+                // Debug: Check if PageInfo objects have data
+                for (Map.Entry<Integer, PageInfo> entry : pageDatabase.entrySet()) {
+                    PageInfo pi = entry.getValue();
+                    if (entry.getKey() <= 3) { // Log first 3 pages
+                        System.out.println("[" + barrelId + "] [DEBUG] Saving PageInfo docId=" + entry.getKey() +
+                                " words=" + pi.getWords().size() +
+                                " inlinks=" + pi.getInlinks().size() +
+                                " outlinks=" + pi.getOutlinks().size());
+                    }
+                }
             }
 
             // Create JSON data structure
@@ -202,6 +282,9 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             jsonData.put("barrelId", barrelId);
             jsonData.put("invertedIndex", invertedIndexSnapshot);
             jsonData.put("pageDatabase", pageDatabaseSnapshot);
+            jsonData.put("urlToDocId", urlToDocIdSnapshot);
+            jsonData.put("docIdToUrl", docIdToUrlSnapshot);
+            jsonData.put("nextDocId", nextDocIdSnapshot);
 
             // Write to file using Gson
             com.google.gson.Gson gson = new com.google.gson.GsonBuilder()
@@ -248,20 +331,51 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> jsonData = gson.fromJson(reader, Map.class);
 
-                // Restore inverted index
+                // Restore URL to docId mappings
                 @SuppressWarnings("unchecked")
-                Map<String, List<String>> invertedIndexData = (Map<String, List<String>>) jsonData.get("invertedIndex");
+                Map<String, Number> urlToDocIdData = (Map<String, Number>) jsonData.get("urlToDocId");
+
+                urlToDocId.clear();
+                if (urlToDocIdData != null) {
+                    for (Map.Entry<String, Number> entry : urlToDocIdData.entrySet()) {
+                        urlToDocId.put(entry.getKey(), entry.getValue().intValue());
+                    }
+                }
+
+                // Restore docId to URL mappings
+                @SuppressWarnings("unchecked")
+                Map<String, String> docIdToUrlData = (Map<String, String>) jsonData.get("docIdToUrl");
+
+                docIdToUrl.clear();
+                if (docIdToUrlData != null) {
+                    for (Map.Entry<String, String> entry : docIdToUrlData.entrySet()) {
+                        // JSON keys are always strings, convert back to Integer
+                        docIdToUrl.put(Integer.parseInt(entry.getKey()), entry.getValue());
+                    }
+                }
+
+                // Restore nextDocId counter
+                Number nextDocIdValue = (Number) jsonData.get("nextDocId");
+                if (nextDocIdValue != null) {
+                    nextDocId.set(nextDocIdValue.intValue());
+                }
+
+                // Restore inverted index (now with Integer docIds)
+                @SuppressWarnings("unchecked")
+                Map<String, List<Number>> invertedIndexData = (Map<String, List<Number>>) jsonData.get("invertedIndex");
 
                 invertedIndex.clear();
                 if (invertedIndexData != null) {
-                    for (Map.Entry<String, List<String>> entry : invertedIndexData.entrySet()) {
-                        ConcurrentHashMap.KeySetView<String, Boolean> keySet = ConcurrentHashMap.newKeySet();
-                        keySet.addAll(entry.getValue());
+                    for (Map.Entry<String, List<Number>> entry : invertedIndexData.entrySet()) {
+                        ConcurrentHashMap.KeySetView<Integer, Boolean> keySet = ConcurrentHashMap.newKeySet();
+                        for (Number docId : entry.getValue()) {
+                            keySet.add(docId.intValue());
+                        }
                         invertedIndex.put(entry.getKey(), keySet);
                     }
                 }
 
-                // Restore page database
+                // Restore page database (now keyed by Integer docId)
                 @SuppressWarnings("unchecked")
                 Map<String, Map<String, Object>> pageDatabaseData = (Map<String, Map<String, Object>>) jsonData
                         .get("pageDatabase");
@@ -269,8 +383,12 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 pageDatabase.clear();
                 if (pageDatabaseData != null) {
                     for (Map.Entry<String, Map<String, Object>> entry : pageDatabaseData.entrySet()) {
+                        // JSON keys are always strings, convert back to Integer
+                        int docId = Integer.parseInt(entry.getKey());
+                        String url = getUrlForDocId(docId);
+
                         Map<String, Object> pageData = entry.getValue();
-                        PageInfo pageInfo = new PageInfo(entry.getKey());
+                        PageInfo pageInfo = new PageInfo(url);
 
                         if (pageData.get("title") != null) {
                             pageInfo.setTitle((String) pageData.get("title"));
@@ -278,9 +396,35 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                         if (pageData.get("textSnippet") != null) {
                             pageInfo.setTextSnippet((String) pageData.get("textSnippet"));
                         }
-                        // Note: inlinkCount will be recalculated when pages are re-indexed
 
-                        pageDatabase.put(entry.getKey(), pageInfo);
+                        // Restore words (Set<String>)
+                        if (pageData.get("words") != null) {
+                            @SuppressWarnings("unchecked")
+                            List<String> wordsData = (List<String>) pageData.get("words");
+                            for (String word : wordsData) {
+                                pageInfo.addWord(word);
+                            }
+                        }
+
+                        // Restore inlinks (Set<Integer>)
+                        if (pageData.get("inlinks") != null) {
+                            @SuppressWarnings("unchecked")
+                            List<Number> inlinksData = (List<Number>) pageData.get("inlinks");
+                            for (Number inlinkDocId : inlinksData) {
+                                pageInfo.addInlink(inlinkDocId.intValue());
+                            }
+                        }
+
+                        // Restore outlinks (Set<Integer>)
+                        if (pageData.get("outlinks") != null) {
+                            @SuppressWarnings("unchecked")
+                            List<Number> outlinksData = (List<Number>) pageData.get("outlinks");
+                            for (Number outlinkDocId : outlinksData) {
+                                pageInfo.addOutlink(outlinkDocId.intValue());
+                            }
+                        }
+
+                        pageDatabase.put(docId, pageInfo);
                     }
                 }
 
