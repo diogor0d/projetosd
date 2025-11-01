@@ -550,7 +550,8 @@ public class GoogolClient {
                 System.out.println();
                 System.out.println(Colors.BOLD_WHITE + stats.toString() + Colors.RESET);
                 System.out.println();
-                System.out.print(Colors.YELLOW + "Press Enter to stop live statistics..." + Colors.RESET);
+                System.out.print(Colors.YELLOW + "Press Enter to stop listening to live statistics from the gateway..."
+                        + Colors.RESET);
             }
         }
     }

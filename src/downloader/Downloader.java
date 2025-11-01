@@ -32,6 +32,9 @@ public class Downloader implements Runnable {
     private static int TIMEOUT = 5000; // Timeout para conexões (ms)
     private static int DEBUG_DELAY_MS = 1500; // Delay in debug mode
 
+    // Stopwords filtering
+    private Set<String> stopwords;
+
     // Constructor for RMI-based downloader (recommended)
     public Downloader(String downloaderId, IGateway gateway, boolean debugMode) {
         this.downloaderId = downloaderId;
@@ -39,6 +42,10 @@ public class Downloader implements Runnable {
         this.barrels = new ArrayList<>();
         this.running = true;
         this.debugMode = debugMode;
+
+        // Load stopwords
+        this.stopwords = TextUtils.loadStopwords(downloaderId);
+        System.out.println("[" + downloaderId + "] Loaded " + stopwords.size() + " stopwords");
 
         // Create thread pool with named threads
         ThreadFactory namedThreadFactory = new ThreadFactory() {
@@ -381,12 +388,12 @@ public class Downloader implements Runnable {
             pageInfo.setTextSnippet(bodyText);
         }
 
-        // Extrai palavras e calcula Term Frequency (TF)
+        // Extrai palavras e calcula Term Frequency (TF), filtering stopwords
         String[] words = bodyText.toLowerCase().split("\\W+");
         Map<String, Integer> termFrequencies = new HashMap<>();
 
         for (String word : words) {
-            if (!word.isEmpty()) {
+            if (!word.isEmpty() && !stopwords.contains(word)) { // Filter stopwords
                 pageInfo.addWord(word);
                 // Count term frequency
                 termFrequencies.put(word, termFrequencies.getOrDefault(word, 0) + 1);
@@ -412,6 +419,9 @@ public class Downloader implements Runnable {
         return pageInfo;
     }
 
+    /**
+     * Load stopwords from data/stopwords-en.txt and data/stopwords-pt.txt
+     */
     private boolean isValidURL(String url) {
         try {
             URI uri = URI.create(url);

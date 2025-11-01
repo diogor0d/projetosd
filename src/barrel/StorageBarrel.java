@@ -37,6 +37,9 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     // Configuration: whether to use JSON saved index
     private boolean useJsonIndex;
 
+    // Stopwords for filtering search queries
+    private Set<String> stopwords;
+
     public StorageBarrel(String barrelId) throws RemoteException {
         super();
         this.barrelId = barrelId;
@@ -59,6 +62,10 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         }
         this.useJsonIndex = useSavedIndex;
         System.out.println("Storage Barrel " + barrelId + " initialized (JSON index: " + useJsonIndex + ")");
+
+        // Load stopwords
+        this.stopwords = TextUtils.loadStopwords(barrelId);
+        System.out.println("[" + barrelId + "] Loaded " + stopwords.size() + " stopwords");
 
         // Load existing index from disk if available
         loadIndexFromDisk();
@@ -150,9 +157,17 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     @Override
     public List<SearchResult> search(Set<String> terms, int page) throws RemoteException {
+        // Normalize and filter stopwords from search terms
         Set<String> normalizedTerms = terms.stream()
                 .map(String::toLowerCase)
+                .filter(term -> !stopwords.contains(term)) // Remove stopwords
                 .collect(Collectors.toSet());
+
+        // If all terms were stopwords, return empty results
+        if (normalizedTerms.isEmpty()) {
+            System.out.println("[" + barrelId + "] Search query contained only stopwords");
+            return new ArrayList<>();
+        }
 
         // Encontra Document IDs que contêm todos os termos
         Set<Integer> resultDocIds = null;
@@ -273,6 +288,9 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Load stopwords from data/stopwords-en.txt and data/stopwords-pt.txt
+     */
     @Override
     public BarrelStats getStats() throws RemoteException {
         // Response time is now managed by Gateway
