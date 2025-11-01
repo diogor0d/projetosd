@@ -78,16 +78,30 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         // Load existing index from disk if available
         loadIndexFromDisk();
 
-        // Determine if we need to sync
-        int currentIndexSize = pageDatabase.size();
+        // Count pages with actual content (exclude placeholders)
+        int currentIndexSize = 0;
+        for (PageInfo page : pageDatabase.values()) {
+            if (page.getWords() != null && !page.getWords().isEmpty()) {
+                currentIndexSize++;
+            }
+        }
+
         if (currentIndexSize == 0) {
-            // Empty index - will need to sync with peers
+            // Empty index - will definitely need to sync with peers
             System.out.println("[" + barrelId + "] Empty index detected, will sync with peers after registration");
         } else {
-            // Already have data, no sync needed
-            System.out.println(
-                    "[" + barrelId + "] Loaded existing index with " + currentIndexSize + " pages, no sync needed");
-            syncCompleted = true;
+            // Has data - will check if outdated by comparing with peers
+            long mostRecentTimestamp = 0;
+            for (PageInfo page : pageDatabase.values()) {
+                if (page.getWords() != null && !page.getWords().isEmpty() &&
+                        page.getIndexedTimestamp() > mostRecentTimestamp) {
+                    mostRecentTimestamp = page.getIndexedTimestamp();
+                }
+            }
+            System.out.println("[" + barrelId + "] Loaded existing index with " + currentIndexSize +
+                    " pages (most recent: " + new java.util.Date(mostRecentTimestamp) + ")");
+            System.out.println("[" + barrelId + "] Will check if index is outdated after registration");
+            // Don't set syncCompleted yet - will check with peers first
         }
     }
 
@@ -326,9 +340,10 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     public BarrelStats getStats() throws RemoteException {
         // Response time is now managed by Gateway
         // Include sync status and peer information for live statistics
+        // Use getIndexSize() to count only pages with content (not placeholders)
         return new BarrelStats(
                 barrelId,
-                pageDatabase.size(),
+                getIndexSize(),
                 0.0,
                 isSyncing,
                 syncPeerBarrelId,
@@ -348,7 +363,22 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     @Override
     public int getIndexSize() throws RemoteException {
-        return pageDatabase.size();
+        // Count only pages with actual content (not empty placeholders for backlinks)
+        int count = 0;
+        int totalPages = pageDatabase.size();
+        for (PageInfo page : pageDatabase.values()) {
+            if (page.getWords() != null && !page.getWords().isEmpty()) {
+                count++;
+            }
+        }
+
+        // Debug: Log if there's a significant difference
+        if (totalPages - count > 10) {
+            System.out.println("[" + barrelId + "] [DEBUG] getIndexSize: " + count + " pages with content out of " +
+                    totalPages + " total entries (" + (totalPages - count) + " placeholders)");
+        }
+
+        return count;
     }
 
     /**
@@ -383,13 +413,33 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                         .entrySet()) {
                     invertedIndexSnapshot.put(entry.getKey(), new HashSet<>(entry.getValue()));
                 }
-                pageDatabaseSnapshot = new HashMap<>(pageDatabase);
+
+                // ONLY save pages with actual content (exclude placeholders)
+                pageDatabaseSnapshot = new HashMap<>();
+                int placeholderCount = 0;
+                for (Map.Entry<Integer, PageInfo> entry : pageDatabase.entrySet()) {
+                    PageInfo page = entry.getValue();
+                    if (page.getWords() != null && !page.getWords().isEmpty()) {
+                        // Page has content - save it
+                        pageDatabaseSnapshot.put(entry.getKey(), page);
+                    } else {
+                        // Placeholder - skip it
+                        placeholderCount++;
+                    }
+                }
+
+                if (placeholderCount > 0) {
+                    System.out.println("[" + barrelId + "] Skipping " + placeholderCount +
+                            " placeholder entries (saving only " + pageDatabaseSnapshot.size()
+                            + " pages with content)");
+                }
+
                 urlToDocIdSnapshot = new HashMap<>(urlToDocId);
                 docIdToUrlSnapshot = new HashMap<>(docIdToUrl);
                 nextDocIdSnapshot = nextDocId.get();
 
                 // Debug: Check if PageInfo objects have data including term frequencies
-                for (Map.Entry<Integer, PageInfo> entry : pageDatabase.entrySet()) {
+                for (Map.Entry<Integer, PageInfo> entry : pageDatabaseSnapshot.entrySet()) {
                     PageInfo pi = entry.getValue();
                     if (entry.getKey() <= 3) { // Log first 3 pages
                         int tfSize = (pi.getTermFrequencies() != null) ? pi.getTermFrequencies().size() : 0;
@@ -584,8 +634,40 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     }
                 }
 
+                // Reconstruct inlinks from outlinks (since we don't save placeholders)
+                // This rebuilds the backlink structure from the saved pages
+                System.out.println("[" + barrelId + "] Reconstructing inlinks from outlinks...");
+                int inlinksReconstructed = 0;
+
+                for (Map.Entry<Integer, PageInfo> entry : pageDatabase.entrySet()) {
+                    int sourceDocId = entry.getKey();
+                    PageInfo sourcePage = entry.getValue();
+
+                    // For each outlink from this page
+                    for (Integer targetDocId : sourcePage.getOutlinks()) {
+                        // Get or create the target page (may be a placeholder if not yet indexed)
+                        String targetUrl = docIdToUrl.get(targetDocId);
+                        if (targetUrl != null) {
+                            PageInfo targetPage = pageDatabase.computeIfAbsent(targetDocId,
+                                    k -> new PageInfo(targetUrl));
+                            targetPage.addInlink(sourceDocId);
+                            inlinksReconstructed++;
+                        }
+                    }
+                }
+
+                System.out.println("[" + barrelId + "] Reconstructed " + inlinksReconstructed + " inlinks");
+
+                // Count pages with actual content (exclude placeholders)
+                int pagesWithContent = 0;
+                for (PageInfo page : pageDatabase.values()) {
+                    if (page.getWords() != null && !page.getWords().isEmpty()) {
+                        pagesWithContent++;
+                    }
+                }
+
                 System.out.println("[" + barrelId + "] Index loaded successfully (" +
-                        pageDatabase.size() + " pages, " +
+                        pagesWithContent + " pages, " +
                         invertedIndex.size() + " terms)");
 
             }
@@ -612,7 +694,18 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         // Quick, non-blocking snapshot of pages before timestamp
         for (Map.Entry<Integer, PageInfo> entry : pageDatabase.entrySet()) {
             PageInfo page = entry.getValue();
-            if (page.getIndexedTimestamp() < beforeTimestamp) {
+            // Only include pages with actual content (not placeholders)
+            if (page.getWords() != null && !page.getWords().isEmpty() &&
+                    page.getIndexedTimestamp() < beforeTimestamp) {
+                // Repopulate outlinkUrls from outlinks for RMI transfer
+                // (outlinkUrls were cleared after initial indexing to save memory)
+                page.getOutlinkUrls().clear();
+                for (Integer outlinkDocId : page.getOutlinks()) {
+                    String outlinkUrl = getUrlForDocId(outlinkDocId);
+                    if (outlinkUrl != null) {
+                        page.getOutlinkUrls().add(outlinkUrl);
+                    }
+                }
                 eligiblePages.add(page);
             }
         }
@@ -632,7 +725,9 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     public int getIndexSizeBeforeTimestamp(long beforeTimestamp) throws RemoteException {
         int count = 0;
         for (PageInfo page : pageDatabase.values()) {
-            if (page.getIndexedTimestamp() < beforeTimestamp) {
+            // Only count pages with actual content (not placeholders)
+            if (page.getWords() != null && !page.getWords().isEmpty() &&
+                    page.getIndexedTimestamp() < beforeTimestamp) {
                 count++;
             }
         }
@@ -692,10 +787,11 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             invertedIndex.computeIfAbsent(word, k -> ConcurrentHashMap.newKeySet()).add(docId);
         }
 
-        // Update backlinks
+        // Update backlinks (create placeholders if needed, just like regular indexPage)
         for (Integer outlinkDocId : outlinkDocIds) {
-            PageInfo targetPage = pageDatabase.get(outlinkDocId);
-            if (targetPage != null) {
+            String outlinkUrl = getUrlForDocId(outlinkDocId);
+            if (outlinkUrl != null) {
+                PageInfo targetPage = pageDatabase.computeIfAbsent(outlinkDocId, k -> new PageInfo(outlinkUrl));
                 targetPage.addInlink(docId);
             }
         }
@@ -705,8 +801,25 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         }
     }
 
+    @Override
+    public long getMostRecentPageTimestamp() throws RemoteException {
+        long mostRecent = 0;
+        for (PageInfo page : pageDatabase.values()) {
+            // Only consider pages with actual content (not placeholders)
+            if (page.getWords() != null && !page.getWords().isEmpty() &&
+                    page.getIndexedTimestamp() > mostRecent) {
+                mostRecent = page.getIndexedTimestamp();
+            }
+        }
+        return mostRecent;
+    }
+
     /**
      * Synchronizes this barrel's index with a peer barrel in the background.
+     * 
+     * Handles two scenarios:
+     * 1. Empty index - syncs all pages from before barrel start
+     * 2. Outdated index - syncs only pages newer than our most recent page
      * 
      * IMPORTANT: This runs in a separate thread and does NOT block the main barrel
      * thread.
@@ -722,6 +835,16 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 syncProgress = 0;
                 System.out.println("[" + barrelId + "] Starting background synchronization (non-blocking)...");
 
+                // SIMPLIFIED LOGIC: Find peer with largest index and sync to it
+                // Count only pages with actual content (not placeholders)
+                int ourIndexSize = 0;
+                for (PageInfo page : pageDatabase.values()) {
+                    if (page.getWords() != null && !page.getWords().isEmpty()) {
+                        ourIndexSize++;
+                    }
+                }
+                System.out.println("[" + barrelId + "] Our current index size: " + ourIndexSize + " pages");
+
                 // Get reference to barrel registry
                 IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
                         .lookup("rmi://localhost:1099/BarrelRegistry");
@@ -729,14 +852,14 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 // Get all barrels
                 List<IBarrel> allBarrels = registry.getAllBarrels();
 
-                // Find the BEST peer barrel to sync from:
+                // Find the peer barrel with the LARGEST index
+                // Simple criteria:
                 // 1. Must not be ourselves
-                // 2. Must be ready (not syncing, sync completed)
-                // 3. Must have data (index size > 0)
-                // 4. Prefer barrel with largest index size (most complete data)
+                // 2. Must be ready (not syncing)
+                // 3. Must have more pages than us
                 IBarrel peerBarrel = null;
                 String peerId = null;
-                int largestIndexSize = 0;
+                int peerIndexSize = 0;
 
                 System.out.println("[" + barrelId + "] Evaluating " + allBarrels.size() + " potential peer barrels...");
 
@@ -757,22 +880,27 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             continue;
                         }
 
-                        // Check if this barrel has any data
-                        int indexSize = barrel.getIndexSize();
-                        if (indexSize == 0) {
-                            System.out.println("[" + barrelId + "]   - Barrel " + candidateId +
-                                    " has no data, skipping");
-                            continue;
-                        }
+                        // Get this barrel's index size
+                        int candidateIndexSize = barrel.getIndexSize();
 
-                        // This is a valid candidate - check if it's the best one so far
                         System.out.println("[" + barrelId + "]   - Barrel " + candidateId +
-                                " is ready with " + indexSize + " pages");
+                                " is ready with " + candidateIndexSize + " pages");
 
-                        if (indexSize > largestIndexSize) {
-                            peerBarrel = barrel;
-                            peerId = candidateId;
-                            largestIndexSize = indexSize;
+                        // Check if this peer has more pages than us
+                        if (candidateIndexSize > ourIndexSize) {
+                            System.out.println("[" + barrelId + "]   - Barrel " + candidateId +
+                                    " has more pages (" + candidateIndexSize + " vs " + ourIndexSize + ")");
+
+                            // Select peer with largest index
+                            if (candidateIndexSize > peerIndexSize) {
+                                peerBarrel = barrel;
+                                peerId = candidateId;
+                                peerIndexSize = candidateIndexSize;
+                                System.out.println("[" + barrelId + "]   - Selected as best peer so far");
+                            }
+                        } else {
+                            System.out.println("[" + barrelId + "]   - Barrel " + candidateId +
+                                    " has same or fewer pages, skipping");
                         }
 
                     } catch (Exception e) {
@@ -783,18 +911,20 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 }
 
                 if (peerBarrel == null) {
-                    System.out.println("[" + barrelId + "] No suitable peer barrels found (all are syncing or empty)");
-                    System.out.println("[" + barrelId + "] Starting with empty index");
+                    // No peer has more pages than us - we have the largest index!
+                    System.out
+                            .println("[" + barrelId + "] No peer has more pages than us - we have the largest index!");
+                    System.out.println("[" + barrelId + "] Our index: " + ourIndexSize + " pages");
                     syncCompleted = true;
                     isSyncing = false;
                     syncPeerBarrelId = null;
-                    syncProgress = 0;
+                    syncProgress = 100;
                     return;
                 }
 
                 syncPeerBarrelId = peerId; // Store peer ID for statistics
                 System.out.println("[" + barrelId + "] Selected peer barrel: " + peerId +
-                        " (largest index with " + largestIndexSize + " pages)");
+                        " with " + peerIndexSize + " pages (we have " + ourIndexSize + " pages)");
 
                 // Get count of pages indexed BEFORE this barrel started (timestamp-based
                 // filtering)
@@ -930,10 +1060,14 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             registered = true;
                             System.out.println("Storage Barrel " + barrelId + " registered with BarrelRegistry");
 
-                            // Trigger synchronization if needed
+                            // Always trigger sync check - will determine if sync is needed based on
+                            // timestamp comparison
                             if (!barrel.syncCompleted) {
-                                System.out.println("[" + barrelId + "] Triggering sync with peer barrels...");
+                                System.out
+                                        .println("[" + barrelId + "] Checking if sync is needed with peer barrels...");
                                 barrel.synchronizeWithPeer();
+                            } else {
+                                System.out.println("[" + barrelId + "] Sync already completed, skipping");
                             }
 
                             System.out.println("Starting health monitoring...");

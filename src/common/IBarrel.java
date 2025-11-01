@@ -81,4 +81,12 @@ public interface IBarrel extends Remote {
      * @param pages List of pages to import
      */
     void bulkImportPages(List<PageInfo> pages) throws RemoteException;
+
+    /**
+     * Gets the timestamp of the most recently indexed page in this barrel
+     * 
+     * @return Timestamp of the newest page (millis since epoch), or 0 if index is
+     *         empty
+     */
+    long getMostRecentPageTimestamp() throws RemoteException;
 }
