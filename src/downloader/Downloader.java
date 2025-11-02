@@ -11,31 +11,31 @@ import java.util.*;
 import java.util.concurrent.*;
 
 /**
- * Downloader - Web Crawler que obtém e processa páginas
- * Múltiplos downloaders trabalham em paralelo
+ * Downloader - Web Crawler que obtem e processa paginas
+ * multiplos downloader threads trabalham em paralelo
  */
 public class Downloader implements Runnable {
 
     private String downloaderId;
-    private IGateway gateway; // Use Gateway via RMI instead of direct objects
+    private IGateway gateway; // usa Gateway via RMI em vez de objetos diretos
     private List<IBarrel> barrels;
-    private volatile boolean running; // volatile for thread visibility
-    private boolean debugMode; // Debug mode slows down processing
+    private volatile boolean running; // volatile para visibilidade entre threads
+    private boolean debugMode; // modo debug abranda o processamento
 
-    // Multi-threading support
+    // suporte multi-threading
     private ThreadPoolExecutor threadPool;
     private static int WORKER_THREADS = 5;
-    // Semaphore to reserve processing slots (threads + queue capacity)
+    // semaforo para reservar slots de processamento (threads + capacidade da queue)
     private Semaphore capacitySemaphore;
 
-    private static int MAX_DEPTH = 3; // Profundidade máxima de crawling
-    private static int TIMEOUT = 5000; // Timeout para conexões (ms)
-    private static int DEBUG_DELAY_MS = 1500; // Delay in debug mode
+    private static int MAX_DEPTH = 3; // Profundidade maxima de crawling
+    private static int TIMEOUT = 5000; // Timeout para conexoes (ms)
+    private static int DEBUG_DELAY_MS = 1500; // delay em modo debug
 
-    // Stopwords filtering
+    // filtragem de stopwords
     private Set<String> stopwords;
 
-    // Constructor for RMI-based downloader (recommended)
+    // construtor para downloader baseado em RMI (recomendado)
     public Downloader(String downloaderId, IGateway gateway, boolean debugMode) {
         this.downloaderId = downloaderId;
         this.gateway = gateway;
@@ -43,11 +43,11 @@ public class Downloader implements Runnable {
         this.running = true;
         this.debugMode = debugMode;
 
-        // Load stopwords
+        // carrega stopwords
         this.stopwords = TextUtils.loadStopwords(downloaderId);
         System.out.println("[" + downloaderId + "] Loaded " + stopwords.size() + " stopwords");
 
-        // Create thread pool with named threads
+        // cria thread pool com threads nomeadas
         ThreadFactory namedThreadFactory = new ThreadFactory() {
             private int threadCount = 0;
 
@@ -61,7 +61,7 @@ public class Downloader implements Runnable {
 
         this.threadPool = new ThreadPoolExecutor(WORKER_THREADS, WORKER_THREADS, 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<Runnable>(WORKER_THREADS), namedThreadFactory);
-        // Initialize capacity semaphore: pool threads + queue capacity
+        // inicializa semaforo de capacidade: threads do pool + capacidade da queue
         this.capacitySemaphore = new Semaphore(WORKER_THREADS + WORKER_THREADS);
 
         if (debugMode) {
@@ -71,7 +71,7 @@ public class Downloader implements Runnable {
         System.out.println("[" + downloaderId + "] Initialized with " + WORKER_THREADS + " worker threads");
     }
 
-    // Constructor without debug mode (defaults to false)
+    // construtor sem modo debug (por defeito false)
     public Downloader(String downloaderId, IGateway gateway) {
         this(downloaderId, gateway, false);
     }
@@ -86,24 +86,25 @@ public class Downloader implements Runnable {
 
         while (running) {
             try {
-                // Verifica se o gateway está disponível antes de tentar usar
+                // verifica se o gateway esta disponivel antes de tentar usar
                 if (gateway == null) {
                     System.err.println("[" + downloaderId + "] Failed to connect to gateway. Waiting to try again...");
                     Thread.sleep(3000);
                     continue;
                 }
 
-                // Reserve a processing slot (blocks until a thread/queue slot available)
+                // reserva um slot de processamento (bloqueia ate um slot de thread/queue estar
+                // disponivel)
                 capacitySemaphore.acquire();
 
-                // Bloqueia até obter próximo URL via Gateway RMI (sem busy waiting)
-                String url = gateway.getNextURL(); // Bloqueia até ter URL disponível
+                // bloqueia ate obter proximo URL via Gateway RMI (sem busy waiting)
+                String url = gateway.getNextURL(); // Bloqueia ate ter URL disponivel
                 System.out.println("[" + downloaderId + "] Fetched URL from queue: " + url);
 
-                // Submit task to thread pool (blocking enqueue if pool is full)
+                // submete tarefa ao thread pool (enqueue bloqueante se pool estiver cheio)
                 submitBlocking(() -> {
                     try {
-                        // Process URL directly (no visited URL tracking)
+                        // processa URL diretamente (sem tracking de URLs visitados)
                         processURL(url);
                     } catch (Exception e) {
                         System.err.println(
@@ -112,10 +113,10 @@ public class Downloader implements Runnable {
                 });
 
             } catch (java.rmi.RemoteException e) {
-                // Gateway offline ou problema de rede - exit to trigger reconnection
+                // gateway offline ou problema de rede - sai para desencadear reconnection
                 System.err.println("[" + downloaderId + "] Gateway connection error: " + e.getMessage());
                 System.err.println("[" + downloaderId + "] Gateway appears to be down. Exiting to reconnect...");
-                break; // Exit run loop to trigger reconnection in main()
+                break; // sai do loop run para desencadear reconnection no main()
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
@@ -124,26 +125,26 @@ public class Downloader implements Runnable {
             }
         }
 
-        // Proper cleanup
+        // limpeza adequada
         shutdown();
         System.out.println("[" + downloaderId + "] Downloader stopped");
     }
 
     /**
-     * Graceful shutdown of thread pool
+     * shutdown clean do thread pool
      */
     private void shutdown() {
         System.out.println("[" + downloaderId + "] Shutting down thread pool...");
 
-        threadPool.shutdown(); // Stop accepting new tasks
+        threadPool.shutdown(); // para de aceitar novas tarefas
 
         try {
-            // Wait for existing tasks to complete (with timeout)
+            // aguarda conclusao de tarefas existentes (com timeout)
             if (!threadPool.awaitTermination(30, TimeUnit.SECONDS)) {
                 System.err.println("[" + downloaderId + "] Thread pool did not terminate in time, forcing shutdown...");
-                threadPool.shutdownNow(); // Force shutdown
+                threadPool.shutdownNow(); // forca shutdown
 
-                // Wait again for tasks to respond to cancellation
+                // aguarda novamente para tarefas responderem ao cancelamento
                 if (!threadPool.awaitTermination(10, TimeUnit.SECONDS)) {
                     System.err.println("[" + downloaderId + "] Thread pool did not terminate after forced shutdown");
                 }
@@ -158,13 +159,13 @@ public class Downloader implements Runnable {
     }
 
     /**
-     * Submit a task to the thread pool, blocking by placing the runnable in the
-     * executor queue if the pool is saturated. This avoids
+     * submete uma tarefa ao thread pool, bloqueando ao colocar o runnable na
+     * queue do executor se o pool estiver saturado. isto evita
      * RejectedExecutionException
-     * and does not busy-wait or sleep.
+     * e nao faz busy-wait nem sleep.
      */
     private void submitBlocking(Runnable task) {
-        // Wrap the task so we release the semaphore permit when it finishes
+        // encapsula a tarefa para libertar a permissao do semaforo quando terminar
         Runnable wrapped = () -> {
             try {
                 task.run();
@@ -174,18 +175,18 @@ public class Downloader implements Runnable {
         };
 
         try {
-            // Try to hand off to executor first
+            // tenta passar para o executor primeiro
             threadPool.execute(wrapped);
         } catch (RejectedExecutionException rex) {
-            // If rejected, blockingly enqueue into the queue. This will wait until
-            // space becomes available. If interrupted while waiting, release the
-            // permit to avoid leaks and re-interrupt.
+            // se rejeitado, enfileira de forma bloqueante na queue. isto vai aguardar ate
+            // haver espaco disponivel. se interrompido enquanto aguarda, liberta a
+            // permissao para evitar fugas e volta a interromper.
             try {
                 BlockingQueue<Runnable> q = threadPool.getQueue();
                 q.put(wrapped);
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
-                // release permit since task wasn't enqueued
+                // liberta permissao ja que tarefa nao foi enfileirada
                 capacitySemaphore.release();
                 throw new RuntimeException("Interrupted while enqueueing task", ie);
             }
@@ -193,20 +194,20 @@ public class Downloader implements Runnable {
     }
 
     private void processURL(String urlStr) {
-        // Get thread name for logging
+        // obtem nome da thread para logging
         String threadName = Thread.currentThread().getName();
 
         try {
             System.out.println("[" + downloaderId + "][" + threadName + "] Processing: " + urlStr);
 
-            // Debug mode: slow down processing
+            // modo debug: abranda o processamento
             if (debugMode) {
                 System.out.println(
                         "[" + downloaderId + "][" + threadName + "] [DEBUG] Sleeping for " + DEBUG_DELAY_MS + "ms...");
                 Thread.sleep(DEBUG_DELAY_MS);
             }
 
-            // Obtém e analisa a página
+            // obtem e analisa a pagina
             Document doc = Jsoup.connect(urlStr)
                     .timeout(TIMEOUT)
                     .userAgent("Mozilla/5.0 (compatible; GoogolBot/1.0)")
@@ -214,18 +215,18 @@ public class Downloader implements Runnable {
 
             PageInfo pageInfo = extractPageInfo(urlStr, doc);
 
-            // print page info
+            // imprime informacao da pagina
             System.out.println("[" + downloaderId + "][" + threadName + "] Extracted PageInfo: " + pageInfo);
 
-            // RMI MULTICAST: Send to all barrels via BarrelRegistry
+            // RMI MULTICAST: envia para todos os barrels via BarrelRegistry
             multicastToAllBarrels(pageInfo);
 
-            // Adiciona links encontrados à fila (com prioridade normal - crawled)
+            // adiciona links encontrados a fila (com prioridade normal - crawled)
             for (String link : pageInfo.getOutlinkUrls()) {
                 gateway.addDiscoveredURL(link, false); // false = prioridade normal (crawled)
             }
 
-            // Debug mode: slow down before next URL
+            // modo debug: abranda antes do proximo URL
             if (debugMode) {
                 System.out.println("[" + downloaderId + "][" + threadName
                         + "] [DEBUG] Finished processing, sleeping before next URL...");
@@ -240,25 +241,25 @@ public class Downloader implements Runnable {
     }
 
     /**
-     * Reliable RMI Multicast - Send PageInfo to ALL registered barrels
-     * Implements retry logic for reliability
+     * Multicast RMI confiavel - envia PageInfo para TODOS os barrels registados
+     * implementa logica de retry para confiabilidade
      */
     private void multicastToAllBarrels(PageInfo pageInfo) {
         try {
-            // Get barrel registry
+            // obtem registo de barrels
             IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming.lookup("rmi://localhost/BarrelRegistry");
 
-            // Get all active barrels
+            // obtem todos os barrels ativos
             List<IBarrel> allBarrels = registry.getAllBarrels();
 
             if (allBarrels.isEmpty()) {
                 System.err.println("[" + downloaderId + "] WARNING: No barrels available!");
                 System.err.println("[" + downloaderId + "] Retrying in 2 seconds: " + pageInfo.getUrl());
 
-                // Wait and retry once after 2 seconds
+                // aguarda e tenta novamente apos 2 segundos
                 Thread.sleep(2000);
 
-                // Try to get barrels again
+                // tenta obter barrels novamente
                 allBarrels = registry.getAllBarrels();
 
                 if (allBarrels.isEmpty()) {
@@ -274,18 +275,18 @@ public class Downloader implements Runnable {
             // "[" + downloaderId + "] Multicasting to " + allBarrels.size() + " barrel(s):
             // " + pageInfo.getUrl());
 
-            // Track success/failure for each barrel
+            // rastreia sucesso/falha para cada barrel
             int successCount = 0;
             int failureCount = 0;
 
-            // Send to ALL barrels (reliable multicast via RMI)
+            // envia para TODOS os barrels (multicast confiavel via RMI)
             for (int i = 0; i < allBarrels.size(); i++) {
                 IBarrel barrel = allBarrels.get(i);
                 boolean indexed = false;
                 int retries = 0;
                 int maxRetries = 3;
 
-                // Retry logic for reliability
+                // logica de retry para confiabilidade
                 while (!indexed && retries < maxRetries) {
                     try {
                         barrel.indexPage(pageInfo);
@@ -299,7 +300,7 @@ public class Downloader implements Runnable {
                         if (retries < maxRetries) {
                             System.err.println("[" + downloaderId + "] Retry " + retries + "/" + maxRetries
                                     + " for barrel " + (i + 1));
-                            Thread.sleep(500); // Wait before retry
+                            Thread.sleep(500); // aguarda antes de tentar novamente
                         } else {
                             failureCount++;
                             System.err.println("[" + downloaderId + "] Failed to index on barrel " + (i + 1)
@@ -309,7 +310,7 @@ public class Downloader implements Runnable {
                 }
             }
 
-            // Log multicast result
+            // regista resultado do multicast
             // if (successCount == allBarrels.size()) {
             // System.out.println("[" + downloaderId + "] MULTICAST SUCCESS: All " +
             // successCount
@@ -323,13 +324,14 @@ public class Downloader implements Runnable {
                 System.err.println(
                         "[" + downloaderId + "] MULTICAST FAILED: No barrels indexed " + pageInfo.getUrl());
 
-                // Only retry if we're not shutting down (check error messages for "shutting
+                // apenas tenta novamente se nao estivermos em shutdown (verifica mensagens de
+                // erro para "shutting
                 // down")
-                // Wait briefly and try ONE more time with a fresh barrel list
+                // aguarda brevemente e tenta MAIS UMA vez com lista de barrels atualizada
                 System.err.println("[" + downloaderId + "] Retrying in 2 seconds...");
                 Thread.sleep(2000);
 
-                // Try again with fresh barrel list
+                // tenta novamente com lista de barrels atualizada
                 List<IBarrel> retryBarrels = registry.getAllBarrels();
 
                 if (!retryBarrels.isEmpty()) {
@@ -340,9 +342,9 @@ public class Downloader implements Runnable {
                             barrel.indexPage(pageInfo);
                             successCount++;
                             System.out.println("[" + downloaderId + "] Retry successful for: " + pageInfo.getUrl());
-                            break; // Success on at least one barrel
+                            break; // sucesso em pelo menos um barrel
                         } catch (Exception retryEx) {
-                            // If barrel is shutting down, don't spam with errors
+                            // se barrel esta em shutdown, nao faz spam com erros
                             if (!retryEx.getMessage().contains("shutting down")) {
                                 System.err.println("[" + downloaderId + "] Retry failed: " + retryEx.getMessage());
                             }
@@ -362,7 +364,7 @@ public class Downloader implements Runnable {
         } catch (Exception e) {
             System.err.println("[" + downloaderId + "] Multicast error: " + e.getMessage());
 
-            // Fallback to local barrel list if registry not available
+            // fallback para lista local de barrels se registo nao estiver disponivel
             System.err.println("[" + downloaderId + "] Falling back to local barrel list");
             for (IBarrel barrel : barrels) {
                 try {
@@ -377,10 +379,10 @@ public class Downloader implements Runnable {
     private PageInfo extractPageInfo(String url, Document doc) {
         PageInfo pageInfo = new PageInfo(url);
 
-        // Título
+        // titulo
         pageInfo.setTitle(doc.title());
 
-        // Texto (snippet) - primeiros 200 caracteres
+        // texto (snippet) - primeiros 200 caracteres
         String bodyText = doc.body().text();
         if (bodyText.length() > 200) {
             pageInfo.setTextSnippet(bodyText.substring(0, 200) + "...");
@@ -388,22 +390,22 @@ public class Downloader implements Runnable {
             pageInfo.setTextSnippet(bodyText);
         }
 
-        // Extrai palavras e calcula Term Frequency (TF), filtering stopwords
+        // extrai palavras e calcula Term Frequency (TF), filtrando stopwords
         String[] words = bodyText.toLowerCase().split("\\W+");
         Map<String, Integer> termFrequencies = new HashMap<>();
 
         for (String word : words) {
-            if (!word.isEmpty() && !stopwords.contains(word)) { // Filter stopwords
+            if (!word.isEmpty() && !stopwords.contains(word)) { // filtra stopwords
                 pageInfo.addWord(word);
-                // Count term frequency
+                // conta frequencia dos termos
                 termFrequencies.put(word, termFrequencies.getOrDefault(word, 0) + 1);
             }
         }
 
-        // Store term frequencies in PageInfo
+        // armazena frequencias dos termos em PageInfo
         pageInfo.setTermFrequencies(termFrequencies);
 
-        // Extrai links
+        // extrai links
         Elements links = doc.select("a[href]");
         for (Element link : links) {
             try {
@@ -412,7 +414,7 @@ public class Downloader implements Runnable {
                     pageInfo.addOutlink(absUrl);
                 }
             } catch (Exception e) {
-                // Ignora URLs inválidos
+                // ignora URLs invalidos
             }
         }
 
@@ -420,7 +422,7 @@ public class Downloader implements Runnable {
     }
 
     /**
-     * Load stopwords from data/stopwords-en.txt and data/stopwords-pt.txt
+     * carrega stopwords de data/stopwords-en.txt e data/stopwords-pt.txt
      */
     private boolean isValidURL(String url) {
         try {
@@ -440,14 +442,14 @@ public class Downloader implements Runnable {
     }
 
     public static void main(String[] args) {
-        // Parse downloader ID from command-line argument
-        String downloaderId = "Downloader-1"; // Default ID
+        // analisa ID do downloader a partir do argumento da linha de comandos
+        String downloaderId = "Downloader-1"; // ID por defeito
         if (args.length > 0 && !args[0].startsWith("--")) {
-            // First argument is the ID (if it doesn't start with --)
+            // primeiro argumento e o ID (se nao comecar com --)
             downloaderId = "Downloader-" + args[0];
         }
 
-        // Load configuration from system.properties
+        // carrega configuracao de system.properties
         boolean debugMode = false;
         int debugDelayMs = 1500;
 
@@ -460,7 +462,7 @@ public class Downloader implements Runnable {
             debugMode = Boolean.parseBoolean(props.getProperty("downloader.debug.mode", "false"));
             debugDelayMs = Integer.parseInt(props.getProperty("downloader.debug.delay.ms", "1500"));
 
-            // Load configurable values
+            // carrega valores configuraveis
             DEBUG_DELAY_MS = debugDelayMs;
             TIMEOUT = Integer.parseInt(props.getProperty("downloader.timeout", "5000"));
             MAX_DEPTH = Integer.parseInt(props.getProperty("downloader.max.depth", "3"));
@@ -474,7 +476,8 @@ public class Downloader implements Runnable {
             System.err.println("Warning: Could not load config file. Using defaults.");
         }
 
-        // Command-line argument can override config file (--debug flag)
+        // argumento da linha de comandos pode sobrepor ficheiro de config (flag
+        // --debug)
         for (String arg : args) {
             if (arg.equalsIgnoreCase("--debug")) {
                 debugMode = true;
@@ -486,13 +489,14 @@ public class Downloader implements Runnable {
         final boolean debug = debugMode;
         final String finalDownloaderId = downloaderId;
 
-        // Reference to current downloader for shutdown hook
+        // referencia ao downloader atual para shutdown hook
         final Downloader[] currentDownloader = new Downloader[1];
 
-        // Add shutdown hook for graceful termination
+        // adiciona shutdown hook para terminacao graciosa
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                // Flush streams first to avoid Maven/Jansi ANSI parsing issues
+                // faz flush das streams primeiro para evitar problemas de parsing ANSI do
+                // Maven/Jansi
                 System.out.flush();
                 System.err.flush();
 
@@ -500,7 +504,7 @@ public class Downloader implements Runnable {
                 if (currentDownloader[0] != null) {
                     System.out.println("Initiating graceful shutdown...");
                     currentDownloader[0].stop();
-                    // Give it a moment to shutdown cleanly
+                    // da um momento para shutdown limpo
                     try {
                         Thread.sleep(2000);
                     } catch (InterruptedException e) {
@@ -510,21 +514,21 @@ public class Downloader implements Runnable {
                 System.out.println("=== Shutdown complete ===");
                 System.out.flush();
             } catch (Exception e) {
-                // Suppress any output errors during shutdown
+                // suprime qualquer erro de output durante shutdown
             }
         }));
 
-        // Continuous connection manager - handles reconnection on Gateway shutdown
+        // gestor de conexao continuo - trata reconnection quando Gateway faz shutdown
         while (true) {
             IGateway gateway = null;
 
-            // Phase 1: Connect to Gateway (retry until successful)
+            // fase 1: conecta ao Gateway (retry ate ter sucesso)
             System.out.println("Attempting to connect to Gateway...");
             while (gateway == null) {
                 try {
                     IGateway tempGateway = (IGateway) java.rmi.Naming.lookup("rmi://localhost/Gateway");
-                    // Verify connection is actually alive
-                    tempGateway.getSystemStats(); // Test call to verify connectivity
+                    // verifica se conexao esta realmente ativa
+                    tempGateway.getSystemStats(); // chamada de teste para verificar conectividade
                     gateway = tempGateway;
                     System.out.println("Connected to Gateway");
                 } catch (Exception e) {
@@ -538,7 +542,7 @@ public class Downloader implements Runnable {
                 }
             }
 
-            // Check and display registered barrels
+            // verifica e mostra barrels registados
             try {
                 IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming.lookup("rmi://localhost/BarrelRegistry");
                 int barrelCount = registry.getBarrelCount();
@@ -547,15 +551,15 @@ public class Downloader implements Runnable {
                 System.err.println("Could not connect to BarrelRegistry: " + e.getMessage());
             }
 
-            // Phase 2: Run downloader until Gateway connection fails
+            // fase 2: executa downloader ate conexao ao Gateway falhar
             try {
                 Downloader downloader = new Downloader(finalDownloaderId, gateway, debug);
-                currentDownloader[0] = downloader; // Store reference for shutdown hook
+                currentDownloader[0] = downloader; // guarda referencia para shutdown hook
 
                 Thread thread = new Thread(downloader);
                 thread.start();
 
-                // Wait for thread to finish (happens when Gateway connection is lost)
+                // aguarda thread terminar (acontece quando conexao ao Gateway e perdida)
                 thread.join();
 
                 System.err.println(finalDownloaderId + ": Lost connection to Gateway!");
@@ -564,10 +568,10 @@ public class Downloader implements Runnable {
             } catch (Exception e) {
                 System.err.println(finalDownloaderId + " error: " + e.getMessage());
             } finally {
-                currentDownloader[0] = null; // Clear reference
+                currentDownloader[0] = null; // limpa referencia
             }
 
-            // Small delay before reconnection attempt
+            // pequeno delay antes de tentar reconnection
             try {
                 Thread.sleep(2000);
             } catch (InterruptedException e) {

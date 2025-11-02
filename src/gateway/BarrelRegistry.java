@@ -9,8 +9,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Barrel Registry - Tracks all active barrels in the system
- * Enables reliable RMI multicast from downloaders to all barrels
+ * Barrel Registry - regista todos os barrels ativos no sistema
+ * permite multicast RMI confiavel de downloaders para todos os barrels
  */
 public class BarrelRegistry extends UnicastRemoteObject implements IBarrelRegistry {
 
@@ -24,13 +24,13 @@ public class BarrelRegistry extends UnicastRemoteObject implements IBarrelRegist
 
     @Override
     public synchronized void registerBarrel(String barrelId, IBarrel barrel) throws RemoteException {
-        // If barrel already registered, remove old one first
+        // se barrel ja registado, remove o antigo primeiro
         if (activeBarrels.containsKey(barrelId)) {
             System.out.println("[BarrelRegistry] Barrel " + barrelId + " already registered, replacing...");
             activeBarrels.remove(barrelId);
         }
 
-        // Verify barrel is accessible
+        // verifica se barrel esta acessivel
         try {
             barrel.ping();
             activeBarrels.put(barrelId, barrel);
@@ -55,7 +55,7 @@ public class BarrelRegistry extends UnicastRemoteObject implements IBarrelRegist
 
     @Override
     public synchronized List<IBarrel> getAllBarrels() throws RemoteException {
-        // Clean up dead barrels
+        // limpa barrels mortos
         List<String> deadBarrels = new ArrayList<>();
         for (Map.Entry<String, IBarrel> entry : activeBarrels.entrySet()) {
             try {
@@ -66,7 +66,7 @@ public class BarrelRegistry extends UnicastRemoteObject implements IBarrelRegist
             }
         }
 
-        // Remove dead barrels
+        // Remove barrels mortos
         for (String barrelId : deadBarrels) {
             activeBarrels.remove(barrelId);
         }
@@ -85,7 +85,7 @@ public class BarrelRegistry extends UnicastRemoteObject implements IBarrelRegist
     }
 
     /**
-     * Get statistics about registered barrels
+     * obtem estatisticas sobre barrels registados
      */
     public Map<String, Integer> getBarrelStats() throws RemoteException {
         Map<String, Integer> stats = new HashMap<>();
@@ -94,7 +94,7 @@ public class BarrelRegistry extends UnicastRemoteObject implements IBarrelRegist
                 int size = entry.getValue().getIndexSize();
                 stats.put(entry.getKey(), size);
             } catch (RemoteException e) {
-                stats.put(entry.getKey(), -1); // Indicates error
+                stats.put(entry.getKey(), -1); // indica erro
             }
         }
         return stats;

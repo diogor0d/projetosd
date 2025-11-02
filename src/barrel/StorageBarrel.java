@@ -10,42 +10,42 @@ import java.util.stream.Collectors;
 import java.io.*;
 
 /**
- * Storage Barrel - Servidor que armazena o índice invertido
- * Implementa replicação para tolerância a falhas
+ * Storage Barrel - servidor que armazena o indice invertido
+ * implementa replicacao para tolerancia a falhas
  */
 public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     private String barrelId;
 
-    // Document ID system for URL storage optimization
+    // sistema de Document ID para otimizacao de armazenamento de URLs
     // URL -> Document ID
     private ConcurrentHashMap<String, Integer> urlToDocId;
     // Document ID -> URL
     private ConcurrentHashMap<Integer, String> docIdToUrl;
-    // Next available document ID
+    // proximo Document ID disponivel
     private AtomicInteger nextDocId;
 
-    // Índice invertido: palavra -> conjunto de Document IDs (instead of URLs)
+    // indice invertido: palavra -> conjunto de Document IDs (em vez de URLs)
     private ConcurrentHashMap<String, ConcurrentHashMap.KeySetView<Integer, Boolean>> invertedIndex;
 
-    // Informação completa sobre cada página: Document ID -> PageInfo
+    // informacao completa sobre cada pagina: Document ID -> PageInfo
     private ConcurrentHashMap<Integer, PageInfo> pageDatabase;
 
-    // Shutdown flag to stop accepting new requests
+    // flag de shutdown para parar de aceitar novos pedidos
     private volatile boolean shuttingDown = false;
 
-    // Configuration: whether to use JSON saved index
+    // configuracao: se deve usar indice JSON guardado
     private boolean useJsonIndex;
 
-    // Stopwords for filtering search queries
+    // stopwords para filtragem de queries de pesquisa
     private Set<String> stopwords;
 
-    // Synchronization state
+    // estado de sincronizacao
     private volatile boolean isSyncing = false;
     private volatile boolean syncCompleted = false;
-    private long barrelStartTimestamp; // When this barrel started (for sync filtering)
-    private volatile String syncPeerBarrelId = null; // Which peer we're syncing from
-    private volatile int syncProgress = 0; // Sync progress percentage (0-100)
+    private long barrelStartTimestamp; // quando este barrel iniciou (para filtragem de sync)
+    private volatile String syncPeerBarrelId = null; // de que peer estamos a fazer sync
+    private volatile int syncProgress = 0; // percentagem de progresso do sync (0-100)
 
     public StorageBarrel(String barrelId) throws RemoteException {
         super();
@@ -55,9 +55,9 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         this.nextDocId = new java.util.concurrent.atomic.AtomicInteger(1);
         this.invertedIndex = new ConcurrentHashMap<>();
         this.pageDatabase = new ConcurrentHashMap<>();
-        // barrelStartTimestamp will be set later, right before accepting pages
+        // barrelStartTimestamp sera definido mais tarde, logo antes de aceitar paginas
 
-        // Load configuration
+        // carrega configuracao
         boolean useSavedIndex = true;
         try {
             java.util.Properties props = new java.util.Properties();
@@ -71,14 +71,14 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         this.useJsonIndex = useSavedIndex;
         System.out.println("Storage Barrel " + barrelId + " initialized (JSON index: " + useJsonIndex + ")");
 
-        // Load stopwords
+        // carrega stopwords
         this.stopwords = TextUtils.loadStopwords(barrelId);
         System.out.println("[" + barrelId + "] Loaded " + stopwords.size() + " stopwords");
 
-        // Load existing index from disk if available
+        // carrega indice existente do disco se disponivel
         loadIndexFromDisk();
 
-        // Count pages with actual content (exclude placeholders)
+        // conta paginas com conteudo real (exclui placeholders)
         int currentIndexSize = 0;
         for (PageInfo page : pageDatabase.values()) {
             if (page.getWords() != null && !page.getWords().isEmpty()) {
@@ -87,10 +87,10 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         }
 
         if (currentIndexSize == 0) {
-            // Empty index - will definitely need to sync with peers
+            // indice vazio - vai definitivamente precisar de sincronizar com peers
             System.out.println("[" + barrelId + "] Empty index detected, will sync with peers after registration");
         } else {
-            // Has data - will check if outdated by comparing with peers
+            // tem dados - vai verificar se estao desatualizados comparando com peers
             long mostRecentTimestamp = 0;
             for (PageInfo page : pageDatabase.values()) {
                 if (page.getWords() != null && !page.getWords().isEmpty() &&
@@ -101,12 +101,12 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             System.out.println("[" + barrelId + "] Loaded existing index with " + currentIndexSize +
                     " pages (most recent: " + new java.util.Date(mostRecentTimestamp) + ")");
             System.out.println("[" + barrelId + "] Will check if index is outdated after registration");
-            // Don't set syncCompleted yet - will check with peers first
+            // nao define syncCompleted ainda - vai verificar com peers primeiro
         }
     }
 
     /**
-     * Gets or creates a document ID for a URL
+     * obtem ou cria um document ID para um URL
      */
     private int getOrCreateDocId(String url) {
         return urlToDocId.computeIfAbsent(url, k -> {
@@ -117,7 +117,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     }
 
     /**
-     * Gets the URL for a document ID
+     * obtem o URL para um document ID
      */
     private String getUrlForDocId(int docId) {
         return docIdToUrl.get(docId);
@@ -125,7 +125,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     @Override
     public void indexPage(PageInfo pageInfo) throws RemoteException {
-        // Reject new indexing requests during shutdown
+        // rejeita novos pedidos de indexacao durante o shutdown
         if (shuttingDown) {
             throw new RemoteException("Barrel is shutting down, not accepting new requests");
         }
@@ -135,7 +135,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
         System.out.println("[" + barrelId + "] Indexing: " + url + " (docId=" + docId + ")");
 
-        // Convert URL outlinks to document IDs (from Downloader)
+        // converte URLs de outlinks para document IDs (do Downloader)
         int outlinkCount = 0;
         for (String outlinkUrl : pageInfo.getOutlinkUrls()) {
             int outlinkDocId = getOrCreateDocId(outlinkUrl);
@@ -143,46 +143,46 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             outlinkCount++;
         }
 
-        // Clear outlinkUrls after conversion - no longer needed, saves memory
+        // limpa outlinkUrls apos conversao - ja nao sao necessarios, poupa memoria
         pageInfo.getOutlinkUrls().clear();
 
         /* System.out.println("[" + barrelId + "] [DEBUG] Converted " + outlinkCount + " outlinks to docIds. " +
                 "PageInfo now has: words=" + pageInfo.getWords().size() +
                 " outlinks=" + pageInfo.getOutlinks().size()); */
 
-        // Atualiza informação da página usando document ID
+        // atualiza informacao da pagina usando document ID
         PageInfo existing = pageDatabase.get(docId);
         if (existing != null) {
-            // Update existing page with new content
+            // atualiza pagina existente com novo conteudo
             existing.setTitle(pageInfo.getTitle());
             existing.setTextSnippet(pageInfo.getTextSnippet());
             existing.setWords(pageInfo.getWords());
-            existing.setTermFrequencies(pageInfo.getTermFrequencies()); // Copy term frequencies!
-            existing.setIndexedTimestamp(pageInfo.getIndexedTimestamp()); // Update timestamp to latest
-            // Merge inlinks and outlinks
+            existing.setTermFrequencies(pageInfo.getTermFrequencies()); // copia frequencias de termos!
+            existing.setIndexedTimestamp(pageInfo.getIndexedTimestamp()); // atualiza timestamp para o mais recente
+            // funde inlinks e outlinks
             existing.getInlinks().addAll(pageInfo.getInlinks());
             existing.getOutlinks().addAll(pageInfo.getOutlinks());
         } else {
             pageDatabase.put(docId, pageInfo);
         }
 
-        // Debug: Check if term frequencies were received
+        // debug: verifica se frequencias de termos foram recebidas
         int tfSize = (pageInfo.getTermFrequencies() != null) ? pageInfo.getTermFrequencies().size() : 0;
         if (tfSize == 0) {
             System.out.println("[" + barrelId + "] [WARNING] PageInfo has no term frequencies for: " + url);
-        } else if (docId <= 3) { // Log first 3 pages
+        } else if (docId <= 3) { // log primeiras 3 paginas
             /* System.out.println(
                     "[" + barrelId + "] [DEBUG] Indexed docId=" + docId + " with " + tfSize + " term frequencies"); */
         }
 
-        // Atualiza índice invertido usando document IDs
+        // atualiza indice invertido usando document IDs
         for (String word : pageInfo.getWords()) {
             String lowerWord = word.toLowerCase();
             invertedIndex.computeIfAbsent(lowerWord, k -> ConcurrentHashMap.newKeySet()).add(docId);
         }
 
-        // Atualiza backlinks (inlinks) das páginas referenciadas
-        // Create placeholder PageInfo for pages not yet indexed to track inlinks
+        // atualiza backlinks (inlinks) das paginas referenciadas
+        // cria placeholder PageInfo para paginas ainda nao indexadas para rastrear inlinks
         for (Integer outlinkDocId : pageInfo.getOutlinks()) {
             String outlinkUrl = getUrlForDocId(outlinkDocId);
             PageInfo outlinkedPage = pageDatabase.computeIfAbsent(outlinkDocId, k -> new PageInfo(outlinkUrl));
@@ -192,7 +192,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     @Override
     public List<SearchResult> search(Set<String> terms, int page) throws RemoteException {
-        // Wait for synchronization to complete before serving searches
+        // aguarda sincronizacao completa antes de servir pesquisas
         while (isSyncing) {
             System.out.println("[" + barrelId + "] Search blocked: synchronization in progress...");
             try {
@@ -203,33 +203,33 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             }
         }
 
-        // Normalize and filter stopwords from search terms
+        // normaliza e filtra stopwords dos termos de pesquisa
         Set<String> normalizedTerms = terms.stream()
                 .map(String::toLowerCase)
-                .filter(term -> !stopwords.contains(term)) // Remove stopwords
+                .filter(term -> !stopwords.contains(term)) // remove stopwords
                 .collect(Collectors.toSet());
 
-        // If all terms were stopwords, return empty results
+        // se todos os termos eram stopwords, retorna resultados vazios
         if (normalizedTerms.isEmpty()) {
             System.out.println("[" + barrelId + "] Search query contained only stopwords");
             return new ArrayList<>();
         }
 
-        // Encontra Document IDs que contêm todos os termos
+        // encontra Document IDs que contem todos os termos
         Set<Integer> resultDocIds = null;
 
         for (String term : normalizedTerms) {
             Set<Integer> docIdsForTerm = invertedIndex.get(term);
 
             if (docIdsForTerm == null || docIdsForTerm.isEmpty()) {
-                // Se algum termo não existe, não há resultados
+                // se algum termo nao existe, nao ha resultados
                 return new ArrayList<>();
             }
 
             if (resultDocIds == null) {
                 resultDocIds = new HashSet<>(docIdsForTerm);
             } else {
-                resultDocIds.retainAll(docIdsForTerm); // Interseção
+                resultDocIds.retainAll(docIdsForTerm); // intersecao
             }
         }
 
@@ -237,16 +237,16 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             return new ArrayList<>();
         }
 
-        // Total documents for IDF calculation
+        // total de documentos para calculo de IDF
         int totalDocs = pageDatabase.size();
 
-        // Calculate TF-IDF score for each result
+        // calcula score TF-IDF para cada resultado
         List<SearchResult> results = resultDocIds.stream()
                 .map(docId -> {
                     String url = getUrlForDocId(docId);
                     PageInfo pageInfo = pageDatabase.get(docId);
 
-                    // Calculate TF-IDF score for this document
+                    // calcula score TF-IDF para este documento
                     double tfIdfScore = calculateTfIdfScore(pageInfo, normalizedTerms, totalDocs);
 
                     return new SearchResult(
@@ -256,18 +256,18 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             pageInfo.getInlinkCount(),
                             tfIdfScore);
                 })
-                // Sort by TF-IDF score (descending), then by inlink count (tie-breaker)
+                // ordena por score TF-IDF (descendente), depois por contagem de inlinks (desempate)
                 .sorted((r1, r2) -> {
                     int scoreCompare = Double.compare(r2.getTfIdfScore(), r1.getTfIdfScore());
                     if (scoreCompare != 0) {
                         return scoreCompare;
                     }
-                    // Tie-breaker: use inlink count
+                    // desempate: usa contagem de inlinks
                     return Integer.compare(r2.getRelevance(), r1.getRelevance());
                 })
                 .collect(Collectors.toList());
 
-        // Paginação (10 resultados por página)
+        // paginacao (10 resultados por pagina)
         int startIdx = page * 10;
         int endIdx = Math.min(startIdx + 10, results.size());
 
@@ -275,39 +275,39 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             return new ArrayList<>();
         }
 
-        // Create a new ArrayList from subList to ensure RMI serialization works
+        // cria novo ArrayList do subList para garantir que serializacao RMI funciona
         return new ArrayList<>(results.subList(startIdx, endIdx));
     }
 
     /**
-     * Calculate TF-IDF score for a document given search terms
+     * calcula score TF-IDF para um documento dados os termos de pesquisa
      * 
-     * @param pageInfo  The document
-     * @param terms     Search terms
-     * @param totalDocs Total number of documents in corpus
-     * @return TF-IDF score (sum of TF-IDF for each term)
+     * @param pageInfo  o documento
+     * @param terms     termos de pesquisa
+     * @param totalDocs numero total de documentos no corpus
+     * @return score TF-IDF (soma do TF-IDF para cada termo)
      */
     private double calculateTfIdfScore(PageInfo pageInfo, Set<String> terms, int totalDocs) {
         double score = 0.0;
 
         for (String term : terms) {
-            // Get term frequency from PageInfo (calculated by Downloader)
+            // obtem frequencia do termo do PageInfo (calculado pelo Downloader)
             int termFreq = pageInfo.getTermFrequency(term);
 
             if (termFreq == 0) {
-                continue; // Term not in document
+                continue; // termo nao esta no documento
             }
 
-            // TF (normalized): frequency / max frequency in document
-            // Using raw frequency is simpler and works well
+            // TF (normalizado): frequencia / frequencia maxima no documento
+            // usar frequencia bruta e mais simples e funciona bem
             double tf = termFreq;
 
-            // IDF: log(total docs / docs containing term)
+            // IDF: log(total docs / docs contendo termo)
             Set<Integer> docsWithTerm = invertedIndex.get(term);
             int docsContainingTerm = (docsWithTerm != null) ? docsWithTerm.size() : 1;
             double idf = Math.log((double) totalDocs / docsContainingTerm);
 
-            // TF-IDF for this term
+            // TF-IDF para este termo
             score += tf * idf;
         }
 
@@ -316,10 +316,10 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     @Override
     public List<String> getInlinks(String url) throws RemoteException {
-        // Convert URL to document ID
+        // converte URL para document ID
         Integer docId = urlToDocId.get(url);
         if (docId == null) {
-            // URL not indexed
+            // URL nao indexado
             return new ArrayList<>();
         }
 
@@ -328,20 +328,20 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             return new ArrayList<>();
         }
 
-        // Convert inlink docIds back to URLs for the API
+        // converte inlink docIds de volta para URLs para a API
         return pageInfo.getInlinks().stream()
                 .map(this::getUrlForDocId)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Load stopwords from data/stopwords-en.txt and data/stopwords-pt.txt
+     * carrega stopwords de data/stopwords-en.txt e data/stopwords-pt.txt
      */
     @Override
     public BarrelStats getStats() throws RemoteException {
-        // Response time is now managed by Gateway
-        // Include sync status and peer information for live statistics
-        // Use getIndexSize() to count only pages with content (not placeholders)
+        // tempo de resposta agora e gerido pelo Gateway
+        // inclui estado de sincronizacao e informacao de peers para estatisticas ao vivo
+        // usa getIndexSize() para contar apenas paginas com conteudo (nao placeholders)
         return new BarrelStats(
                 barrelId,
                 getIndexSize(),
@@ -358,13 +358,13 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     @Override
     public boolean isReady() throws RemoteException {
-        // Barrel is ready if it's not currently syncing
+        // barrel esta pronto se nao estiver a sincronizar
         return !isSyncing && syncCompleted;
     }
 
     @Override
     public int getIndexSize() throws RemoteException {
-        // Count only pages with actual content (not empty placeholders for backlinks)
+        // conta apenas paginas com conteudo real (nao placeholders vazios para backlinks)
         int count = 0;
         int totalPages = pageDatabase.size();
         for (PageInfo page : pageDatabase.values()) {
@@ -373,7 +373,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             }
         }
 
-        // Debug: Log if there's a significant difference
+        // debug: mostra log se houver diferenca significativa
         if (totalPages - count > 10) {
             // System.out.println("[" + barrelId + "] [DEBUG] getIndexSize: " + count + "
             // pages with content out of " + totalPages + " total entries (" + (totalPages -
@@ -384,7 +384,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     }
 
     /**
-     * Saves the index to disk using JSON format (simple and reliable)
+     * grava o indice para disco usando formato JSON (simples e confiavel)
      */
     private void saveIndexToDisk() {
         if (!useJsonIndex) {
@@ -396,13 +396,13 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         System.out.println("[" + barrelId + "] Saving index to " + filename + "...");
 
         try {
-            // Ensure data directory exists
+            // garante que diretorio data existe
             File dataDir = new File("data");
             if (!dataDir.exists()) {
                 dataDir.mkdirs();
             }
 
-            // Create snapshot in synchronized block
+            // cria snapshot num bloco sincronizado
             Map<String, Set<Integer>> invertedIndexSnapshot;
             Map<Integer, PageInfo> pageDatabaseSnapshot;
             Map<String, Integer> urlToDocIdSnapshot;
@@ -416,16 +416,16 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     invertedIndexSnapshot.put(entry.getKey(), new HashSet<>(entry.getValue()));
                 }
 
-                // ONLY save pages with actual content (exclude placeholders)
+                // grava APENAS paginas com conteudo real (exclui placeholders)
                 pageDatabaseSnapshot = new HashMap<>();
                 int placeholderCount = 0;
                 for (Map.Entry<Integer, PageInfo> entry : pageDatabase.entrySet()) {
                     PageInfo page = entry.getValue();
                     if (page.getWords() != null && !page.getWords().isEmpty()) {
-                        // Page has content - save it
+                        // pagina tem conteudo - grava
                         pageDatabaseSnapshot.put(entry.getKey(), page);
                     } else {
-                        // Placeholder - skip it
+                        // placeholder - ignora
                         placeholderCount++;
                     }
                 }
@@ -440,10 +440,10 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 docIdToUrlSnapshot = new HashMap<>(docIdToUrl);
                 nextDocIdSnapshot = nextDocId.get();
 
-                // Debug: Check if PageInfo objects have data including term frequencies
+                // debug: verifica se objetos PageInfo tem dados incluindo frequencias de termos
                 for (Map.Entry<Integer, PageInfo> entry : pageDatabaseSnapshot.entrySet()) {
                     PageInfo pi = entry.getValue();
-                    if (entry.getKey() <= 3) { // Log first 3 pages
+                    if (entry.getKey() <= 3) { // mostra log das primeiras 3 paginas
                         int tfSize = (pi.getTermFrequencies() != null) ? pi.getTermFrequencies().size() : 0;
                         /* System.out.println("[" + barrelId + "] [DEBUG] Saving PageInfo docId=" + entry.getKey() +
                                 " words=" + pi.getWords().size() +
@@ -454,7 +454,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 }
             }
 
-            // Create JSON data structure
+            // cria estrutura de dados JSON
             Map<String, Object> jsonData = new HashMap<>();
             jsonData.put("barrelId", barrelId);
             jsonData.put("invertedIndex", invertedIndexSnapshot);
@@ -463,7 +463,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             jsonData.put("docIdToUrl", docIdToUrlSnapshot);
             jsonData.put("nextDocId", nextDocIdSnapshot);
 
-            // Write to file using Gson
+            // escreve para ficheiro usando Gson
             com.google.gson.Gson gson = new com.google.gson.GsonBuilder()
                     .setPrettyPrinting()
                     .create();
@@ -482,7 +482,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     }
 
     /**
-     * Loads the index from disk using JSON format
+     * carrega o indice do disco usando formato JSON
      */
     private void loadIndexFromDisk() {
         if (!useJsonIndex) {
@@ -504,11 +504,11 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             com.google.gson.Gson gson = new com.google.gson.Gson();
 
             try (java.io.FileReader reader = new java.io.FileReader(filename)) {
-                // Read JSON
+                // le JSON
                 @SuppressWarnings("unchecked")
                 Map<String, Object> jsonData = gson.fromJson(reader, Map.class);
 
-                // Restore URL to docId mappings
+                // restaura mapeamentos de URL para docId
                 @SuppressWarnings("unchecked")
                 Map<String, Number> urlToDocIdData = (Map<String, Number>) jsonData.get("urlToDocId");
 
@@ -519,25 +519,25 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     }
                 }
 
-                // Restore docId to URL mappings
+                // restaura mapeamentos de docId para URL
                 @SuppressWarnings("unchecked")
                 Map<String, String> docIdToUrlData = (Map<String, String>) jsonData.get("docIdToUrl");
 
                 docIdToUrl.clear();
                 if (docIdToUrlData != null) {
                     for (Map.Entry<String, String> entry : docIdToUrlData.entrySet()) {
-                        // JSON keys are always strings, convert back to Integer
+                        // chaves JSON sao sempre strings, converte de volta para Integer
                         docIdToUrl.put(Integer.parseInt(entry.getKey()), entry.getValue());
                     }
                 }
 
-                // Restore nextDocId counter
+                // restaura contador nextDocId
                 Number nextDocIdValue = (Number) jsonData.get("nextDocId");
                 if (nextDocIdValue != null) {
                     nextDocId.set(nextDocIdValue.intValue());
                 }
 
-                // Restore inverted index (now with Integer docIds)
+                // restaura indice invertido (agora com docIds Integer)
                 @SuppressWarnings("unchecked")
                 Map<String, List<Number>> invertedIndexData = (Map<String, List<Number>>) jsonData.get("invertedIndex");
 
@@ -552,7 +552,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     }
                 }
 
-                // Restore page database (now keyed by Integer docId)
+                // restaura base de dados de paginas (agora chaveado por docId Integer)
                 @SuppressWarnings("unchecked")
                 Map<String, Map<String, Object>> pageDatabaseData = (Map<String, Map<String, Object>>) jsonData
                         .get("pageDatabase");
@@ -560,7 +560,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 pageDatabase.clear();
                 if (pageDatabaseData != null) {
                     for (Map.Entry<String, Map<String, Object>> entry : pageDatabaseData.entrySet()) {
-                        // JSON keys are always strings, convert back to Integer
+                        // chaves JSON sao sempre strings, converte de volta para Integer
                         int docId = Integer.parseInt(entry.getKey());
                         String url = getUrlForDocId(docId);
 
@@ -574,7 +574,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             pageInfo.setTextSnippet((String) pageData.get("textSnippet"));
                         }
 
-                        // Restore words (Set<String>)
+                        // restaura palavras (Set<String>)
                         if (pageData.get("words") != null) {
                             @SuppressWarnings("unchecked")
                             List<String> wordsData = (List<String>) pageData.get("words");
@@ -583,7 +583,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             }
                         }
 
-                        // Restore inlinks (Set<Integer>)
+                        // restaura inlinks (Set<Integer>)
                         if (pageData.get("inlinks") != null) {
                             @SuppressWarnings("unchecked")
                             List<Number> inlinksData = (List<Number>) pageData.get("inlinks");
@@ -592,7 +592,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             }
                         }
 
-                        // Restore outlinks (Set<Integer>)
+                        // restaura outlinks (Set<Integer>)
                         if (pageData.get("outlinks") != null) {
                             @SuppressWarnings("unchecked")
                             List<Number> outlinksData = (List<Number>) pageData.get("outlinks");
@@ -601,7 +601,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             }
                         }
 
-                        // Restore termFrequencies (Map<String, Integer>)
+                        // restaura termFrequencies (Map<String, Integer>)
                         if (pageData.get("termFrequencies") != null) {
                             @SuppressWarnings("unchecked")
                             Map<String, Number> termFreqData = (Map<String, Number>) pageData.get("termFrequencies");
@@ -612,18 +612,18 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             pageInfo.setTermFrequencies(termFrequencies);
                         }
 
-                        // Restore indexed timestamp (or set to 0 for old data)
+                        // restaura timestamp indexado (ou define como 0 para dados antigos)
                         if (pageData.get("indexedTimestamp") != null) {
                             Number timestamp = (Number) pageData.get("indexedTimestamp");
                             pageInfo.setIndexedTimestamp(timestamp.longValue());
                         } else {
-                            // Old data without timestamp - set to 0 (ancient past)
+                            // dados antigos sem timestamp - define como 0 (passado remoto)
                             pageInfo.setIndexedTimestamp(0);
                         }
 
                         pageDatabase.put(docId, pageInfo);
 
-                        // Debug: Log first 3 loaded pages
+                        // debug: mostra log das primeiras 3 paginas carregadas
                         if (docId <= 3) {
                             int tfSize = (pageInfo.getTermFrequencies() != null) ? pageInfo.getTermFrequencies().size()
                                     : 0;
@@ -636,8 +636,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     }
                 }
 
-                // Reconstruct inlinks from outlinks (since we don't save placeholders)
-                // This rebuilds the backlink structure from the saved pages
+                // reconstroi inlinks a partir de outlinks (ja que nao gravamos placeholders)
+                // isto reconstroi a estrutura de backlinks a partir das paginas gravadas
                 System.out.println("[" + barrelId + "] Reconstructing inlinks from outlinks...");
                 int inlinksReconstructed = 0;
 
@@ -645,9 +645,9 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     int sourceDocId = entry.getKey();
                     PageInfo sourcePage = entry.getValue();
 
-                    // For each outlink from this page
+                    // para cada outlink desta pagina
                     for (Integer targetDocId : sourcePage.getOutlinks()) {
-                        // Get or create the target page (may be a placeholder if not yet indexed)
+                        // obtem ou cria a pagina alvo (pode ser placeholder se ainda nao indexada)
                         String targetUrl = docIdToUrl.get(targetDocId);
                         if (targetUrl != null) {
                             PageInfo targetPage = pageDatabase.computeIfAbsent(targetDocId,
@@ -660,7 +660,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
                 System.out.println("[" + barrelId + "] Reconstructed " + inlinksReconstructed + " inlinks");
 
-                // Count pages with actual content (exclude placeholders)
+                // conta paginas com conteudo real (exclui placeholders)
                 int pagesWithContent = 0;
                 for (PageInfo page : pageDatabase.values()) {
                     if (page.getWords() != null && !page.getWords().isEmpty()) {
@@ -688,19 +688,19 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     @Override
     public List<PageInfo> getPageChunkBeforeTimestamp(long beforeTimestamp, int offset, int limit)
             throws RemoteException {
-        // Optimize: Create a filtered list once (cached for repeated requests with same
+        // otimiza: cria lista filtrada uma vez (cached para pedidos repetidos com mesmo
         // timestamp)
-        // This happens in a non-blocking way and allows other requests to proceed
+        // isto acontece de forma nao bloqueante e permite que outros pedidos prossigam
         List<PageInfo> eligiblePages = new ArrayList<>();
 
-        // Quick, non-blocking snapshot of pages before timestamp
+        // snapshot rapido e nao bloqueante de paginas antes do timestamp
         for (Map.Entry<Integer, PageInfo> entry : pageDatabase.entrySet()) {
             PageInfo page = entry.getValue();
-            // Only include pages with actual content (not placeholders)
+            // inclui apenas paginas com conteudo real (nao placeholders)
             if (page.getWords() != null && !page.getWords().isEmpty() &&
                     page.getIndexedTimestamp() < beforeTimestamp) {
-                // Repopulate outlinkUrls from outlinks for RMI transfer
-                // (outlinkUrls were cleared after initial indexing to save memory)
+                // repovoa outlinkUrls a partir de outlinks para transferencia RMI
+                // (outlinkUrls foram limpos apos indexacao inicial para poupar memoria)
                 page.getOutlinkUrls().clear();
                 for (Integer outlinkDocId : page.getOutlinks()) {
                     String outlinkUrl = getUrlForDocId(outlinkDocId);
@@ -712,7 +712,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             }
         }
 
-        // Return the requested chunk without blocking
+        // retorna o chunk pedido sem bloquear
         int startIdx = Math.min(offset, eligiblePages.size());
         int endIdx = Math.min(offset + limit, eligiblePages.size());
 
@@ -727,7 +727,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     public int getIndexSizeBeforeTimestamp(long beforeTimestamp) throws RemoteException {
         int count = 0;
         for (PageInfo page : pageDatabase.values()) {
-            // Only count pages with actual content (not placeholders)
+            // conta apenas paginas com conteudo real (nao placeholders)
             if (page.getWords() != null && !page.getWords().isEmpty() &&
                     page.getIndexedTimestamp() < beforeTimestamp) {
                 count++;
@@ -742,7 +742,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
         for (PageInfo pageInfo : pages) {
             try {
-                // Import the page without triggering save
+                // importa a pagina sem acionar a gravacao
                 indexPageInternal(pageInfo, false);
             } catch (Exception e) {
                 System.err.println(
