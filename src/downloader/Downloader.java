@@ -247,7 +247,8 @@ public class Downloader implements Runnable {
     private void multicastToAllBarrels(PageInfo pageInfo) {
         try {
             // obtem registo de barrels
-            IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming.lookup("rmi://localhost/BarrelRegistry");
+            String registryUrl = common.RMIConfig.getBarrelRegistryRMIUrl();
+            IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming.lookup(registryUrl);
 
             // obtem todos os barrels ativos
             List<IBarrel> allBarrels = registry.getAllBarrels();
@@ -518,19 +519,30 @@ public class Downloader implements Runnable {
             }
         }));
 
+        // Display RMI configuration
+        System.out.println("===========================================");
+        System.out.println("   DOWNLOADER " + finalDownloaderId + " STARTING");
+        System.out.println("===========================================");
+        common.RMIConfig.printConfig(finalDownloaderId);
+        System.out.println("===========================================");
+        System.out.println();
+
         // gestor de conexao continuo - trata reconnection quando Gateway faz shutdown
         while (true) {
             IGateway gateway = null;
 
             // fase 1: conecta ao Gateway (retry ate ter sucesso)
-            System.out.println("Attempting to connect to Gateway...");
+            String gatewayUrl = common.RMIConfig.getGatewayRMIUrl();
+            String registryUrl = common.RMIConfig.getBarrelRegistryRMIUrl();
+
+            System.out.println("Attempting to connect to Gateway at " + gatewayUrl + "...");
             while (gateway == null) {
                 try {
-                    IGateway tempGateway = (IGateway) java.rmi.Naming.lookup("rmi://localhost/Gateway");
+                    IGateway tempGateway = (IGateway) java.rmi.Naming.lookup(gatewayUrl);
                     // verifica se conexao esta realmente ativa
                     tempGateway.getSystemStats(); // chamada de teste para verificar conectividade
                     gateway = tempGateway;
-                    System.out.println("Connected to Gateway");
+                    System.out.println("Connected to Gateway at " + gatewayUrl);
                 } catch (Exception e) {
                     System.err.println("Connection attempt with gateway failed. Retrying in 3 seconds...");
                     try {
@@ -544,7 +556,7 @@ public class Downloader implements Runnable {
 
             // verifica e mostra barrels registados
             try {
-                IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming.lookup("rmi://localhost/BarrelRegistry");
+                IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming.lookup(registryUrl);
                 int barrelCount = registry.getBarrelCount();
                 System.out.println("Downloader initialized - discovered " + barrelCount + " barrel(s) in registry");
             } catch (Exception e) {

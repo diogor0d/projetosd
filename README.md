@@ -12,7 +12,6 @@ Sistema de pesquisa web distribuído com funcionalidades semelhantes ao Google, 
 2. **Index Storage Barrels** - Servidores replicados que armazenam o índice invertido
 3. **RPC/RMI Gateway** - Porta de entrada para clientes
 4. **RPC/RMI Client** - Interface para utilizadores
-5. **URL Queue** - Fila de URLs a processar
 
 ## Estrutura do Projeto
 
@@ -29,23 +28,3 @@ projetosd/
 ├── config/               # Ficheiros de configuração
 └── data/                 # Dados persistentes
 ```
-
-## Funcionalidades
-
-- [x] Indexação manual de URLs
-- [x] Indexação recursiva/iterativa automática
-- [x] Pesquisa por termos
-- [x] Ordenação por relevância (backlinks)
-- [x] Consulta de páginas que apontam para URL específico
-- [x] Estatísticas em tempo real
-- [ ] Stop words (grupos de 3 alunos)
-
-## Tecnologias
-
-- Java RMI
-- jsoup (parsing HTML)
-- HashMap/HashSet para índice invertido
-
-## Como Executar
-
-(A completar)

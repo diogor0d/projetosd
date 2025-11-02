@@ -867,8 +867,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 System.out.println("[" + barrelId + "] Our current index size: " + ourIndexSize + " pages");
 
                 // obtem referencia ao barrel registry
-                IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
-                        .lookup("rmi://localhost:1099/BarrelRegistry");
+                String registryUrl = common.RMIConfig.getBarrelRegistryRMIUrl();
+                IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming.lookup(registryUrl);
 
                 // obtem todos os barrels
                 List<IBarrel> allBarrels = registry.getAllBarrels();
@@ -1034,16 +1034,27 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
         try {
             String barrelId = args[0];
+
+            System.out.println("===========================================");
+            System.out.println("   STORAGE BARREL " + barrelId + " STARTING");
+            System.out.println("===========================================");
+            common.RMIConfig.printConfig("Barrel-" + barrelId);
+            System.out.println("===========================================");
+            System.out.println();
+
             StorageBarrel barrel = new StorageBarrel(barrelId);
 
             // aguarda que Gateway esteja disponivel antes de fazer bind
-            System.out.println("Waiting for Gateway to be available...");
+            String gatewayUrl = common.RMIConfig.getGatewayRMIUrl();
+            String baseUrl = common.RMIConfig.getRMIBaseUrl();
+
+            System.out.println("Waiting for Gateway to be available at " + gatewayUrl + "...");
             boolean gatewayAvailable = false;
 
             while (!gatewayAvailable) {
                 try {
                     // tenta fazer lookup do Gateway para verificar se registry RMI existe
-                    java.rmi.Naming.lookup("rmi://localhost:1099/Gateway");
+                    java.rmi.Naming.lookup(gatewayUrl);
                     gatewayAvailable = true;
                     System.out.println("Gateway detected. Proceeding with registration...");
                 } catch (Exception e) {
@@ -1053,9 +1064,10 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             }
 
             // agora faz bind ao registry RMI (Gateway esta a correr)
-            java.rmi.Naming.rebind("rmi://localhost:1099/Barrel" + barrelId, barrel);
+            String barrelBindUrl = baseUrl + "/Barrel" + barrelId;
+            java.rmi.Naming.rebind(barrelBindUrl, barrel);
 
-            System.out.println("Storage Barrel " + barrelId + " bound to RMI registry");
+            System.out.println("Storage Barrel " + barrelId + " bound to " + barrelBindUrl);
 
             // define o timestamp de inicio AGORA - mesmo antes de aceitar pedidos de
             // paginas
@@ -1078,8 +1090,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     while (!registered && keepRunning[0]) {
                         try {
                             // obtem referencia fresca do registry cada vez
-                            IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
-                                    .lookup("rmi://localhost:1099/BarrelRegistry");
+                            String registryUrl = common.RMIConfig.getBarrelRegistryRMIUrl();
+                            IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming.lookup(registryUrl);
                             registry.registerBarrel(barrelId, barrel);
                             registered = true;
                             System.out.println("Storage Barrel " + barrelId + " registered with BarrelRegistry");
@@ -1113,8 +1125,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                         try {
                             Thread.sleep(5000); // verifica a cada 5 segundos
                             // obtem referencia fresca do registry para cada ping
-                            IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
-                                    .lookup("rmi://localhost:1099/BarrelRegistry");
+                            String registryUrl = common.RMIConfig.getBarrelRegistryRMIUrl();
+                            IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming.lookup(registryUrl);
                             registry.getBarrelCount(); // ping para verificar se ainda esta vivo
                             // se chegamos aqui, conexao ainda esta boa
                         } catch (InterruptedException ie) {
@@ -1184,8 +1196,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     }
 
                     try {
-                        IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
-                                .lookup("rmi://localhost:1099/BarrelRegistry");
+                        String registryUrl = common.RMIConfig.getBarrelRegistryRMIUrl();
+                        IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming.lookup(registryUrl);
                         registry.unregisterBarrel(barrelId);
                         System.out.println("Unregistered from BarrelRegistry");
                     } catch (Exception e) {
@@ -1194,7 +1206,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
                     try {
                         // remove bind do registry RMI
-                        java.rmi.Naming.unbind("rmi://localhost:1099/Barrel" + barrelId);
+                        String unbindUrl = common.RMIConfig.getRMIBaseUrl() + "/Barrel" + barrelId;
+                        java.rmi.Naming.unbind(unbindUrl);
                         System.out.println("Unbound from RMI registry");
                     } catch (Exception e) {
                         // ignora erros durante shutdown

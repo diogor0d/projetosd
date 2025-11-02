@@ -498,24 +498,39 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
     public static void main(String[] args) {
         try {
+            // Load RMI configuration
+            String gatewayHost = common.RMIConfig.getGatewayHost();
+            int gatewayPort = common.RMIConfig.getGatewayPortInt();
+            String baseUrl = common.RMIConfig.getRMIBaseUrl();
+
+            // IMPORTANT: Set RMI hostname for external access
+            System.setProperty("java.rmi.server.hostname", gatewayHost);
+
+            System.out.println("===========================================");
+            System.out.println("        GOOGOL GATEWAY STARTING");
+            System.out.println("===========================================");
+            common.RMIConfig.printConfig("Gateway");
+            System.out.println("===========================================");
+            System.out.println();
+
             Gateway gateway = new Gateway();
 
             // regista no RMI Registry (ou usa existente)
             try {
-                java.rmi.registry.LocateRegistry.createRegistry(1099);
-                System.out.println("RMI Registry created on port 1099");
+                java.rmi.registry.LocateRegistry.createRegistry(gatewayPort);
+                System.out.println("RMI Registry created on port " + gatewayPort);
             } catch (Exception e) {
                 // registo ja existe, continua
-                System.out.println("Using existing RMI Registry on port 1099");
+                System.out.println("Using existing RMI Registry on port " + gatewayPort);
             }
 
-            java.rmi.Naming.rebind("rmi://localhost:1099/Gateway", gateway);
+            java.rmi.Naming.rebind(baseUrl + "/Gateway", gateway);
 
             // tambem faz bind do registo de barrels para acesso direto
-            java.rmi.Naming.rebind("rmi://localhost:1099/BarrelRegistry", gateway.getBarrelRegistry());
+            java.rmi.Naming.rebind(baseUrl + "/BarrelRegistry", gateway.getBarrelRegistry());
 
-            System.out.println("Gateway bound to rmi://localhost:1099/Gateway");
-            System.out.println("BarrelRegistry bound to rmi://localhost:1099/BarrelRegistry");
+            System.out.println("Gateway bound to " + baseUrl + "/Gateway");
+            System.out.println("BarrelRegistry bound to " + baseUrl + "/BarrelRegistry");
             System.out.println("Waiting for barrels to register themselves...");
 
             // thread para imprimir status da fila e barrels registados a cada 5 segundos
@@ -560,8 +575,9 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
                     try {
                         // remove bind do registo RMI
-                        java.rmi.Naming.unbind("rmi://localhost/Gateway");
-                        java.rmi.Naming.unbind("rmi://localhost/BarrelRegistry");
+                        String unbindUrl = common.RMIConfig.getRMIBaseUrl();
+                        java.rmi.Naming.unbind(unbindUrl + "/Gateway");
+                        java.rmi.Naming.unbind(unbindUrl + "/BarrelRegistry");
                         System.out.println("Unbound from RMI registry");
                     } catch (Exception e) {
                         // ignora erros durante shutdown

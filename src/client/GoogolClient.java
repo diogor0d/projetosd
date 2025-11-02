@@ -139,7 +139,14 @@ public class GoogolClient {
         clearScreen();
         printBanner();
 
-        System.out.println(Colors.YELLOW + "🔌 Connecting to Gateway..." + Colors.RESET);
+        // Load and display RMI configuration
+        String gatewayUrl = common.RMIConfig.getClientGatewayRMIUrl();
+        System.out.println(Colors.BOLD_CYAN + "═══════════════════════════════════════════" + Colors.RESET);
+        common.RMIConfig.printConfig("Client");
+        System.out.println(Colors.BOLD_CYAN + "═══════════════════════════════════════════" + Colors.RESET);
+        System.out.println();
+
+        System.out.println(Colors.YELLOW + "🔌 Connecting to Gateway at " + gatewayUrl + "..." + Colors.RESET);
         System.out.println();
 
         try {
@@ -155,7 +162,7 @@ public class GoogolClient {
                 System.out.print("\r" + Colors.CYAN + "   Attempt " + attempts + "... ");
                 System.out.flush();
 
-                IGateway tempGateway = (IGateway) Naming.lookup("rmi://localhost/Gateway");
+                IGateway tempGateway = (IGateway) Naming.lookup(gatewayUrl);
                 // verifica se a conexao esta funcional
                 tempGateway.getSystemStats();
 
@@ -168,6 +175,7 @@ public class GoogolClient {
                 clearScreen();
                 printBanner();
                 System.out.println(Colors.GREEN + "✓ Successfully connected to Googol Gateway" + Colors.RESET);
+                System.out.println(Colors.CYAN + "  Gateway: " + gatewayUrl + Colors.RESET);
                 System.out.println();
 
             } catch (Exception e) {
