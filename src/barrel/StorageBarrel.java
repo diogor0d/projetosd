@@ -51,9 +51,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     private static int HEALTH_INTERVAL_MS = 5000; // intervalo de health check em ms
     private static int SHUTDOWN_MS = 500; // tempo de espera para shutdown em ms
     private static int SAVE_TIMEOUT_MS = 10000; // timeout para gravar indice em ms
-    private static int CHUNK_SIZE = 100; // tamanho do chunk para sincronizacao
-    private static int RMI_PORT = 1099; // porta RMI
-    private static String RMI_HOST = "localhost"; // hostname RMI
+    private static int CHUNK_SIZE = 100; // tamanho do chunk para sincronizacao/ porta RMI
 
     public StorageBarrel(String barrelId) throws RemoteException {
         super();
@@ -77,8 +75,6 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             SHUTDOWN_MS = Integer.parseInt(props.getProperty("barrel.shutdown.ms", "500"));
             SAVE_TIMEOUT_MS = Integer.parseInt(props.getProperty("barrel.save.timeout.ms", "10000"));
             CHUNK_SIZE = Integer.parseInt(props.getProperty("barrel.sync.chunk.size", "100"));
-            RMI_PORT = Integer.parseInt(props.getProperty("rmi.port", "1099"));
-            RMI_HOST = props.getProperty("rmi.hostname", "localhost");
         } catch (Exception e) {
             System.err.println("Warning: Could not load config file for barrel. Using defaults.");
         }

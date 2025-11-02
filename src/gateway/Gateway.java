@@ -25,16 +25,16 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
     // cache de resultados de pesquisa (LRU com limite de tamanho)
     private Map<String, List<SearchResult>> searchCache;
-    private static final int SEARCH_CACHE_SIZE = 1000; // mantem as 1000 pesquisas mais populares
+    private static int SEARCH_CACHE_SIZE = 1000; // mantem as 1000 pesquisas mais populares
 
     // rastreio de URLs visitados usando Bloom filter (eficiente em espaco)
     private BloomFilter<String> visitedURLsBloom;
     // cache de URLs recentes (ultimos 10K) para eliminar falsos positivos do Bloom
     // filter
     private Map<String, Boolean> recentVisitedURLs;
-    private static final int RECENT_CACHE_SIZE = 10000;
-    private static final int EXPECTED_URLS = 10_000_000; // Expected 10M URLs
-    private static final double FALSE_POSITIVE_RATE = 0.01; // 1% false positive rate
+    private static int RECENT_CACHE_SIZE = 10000;
+    private static int EXPECTED_URLS = 10_000_000; // Expected 10M URLs
+    private static double FALSE_POSITIVE_RATE = 0.01; // 1% false positive rate
 
     // Registered remote listeners for pushed system statistics
     private Set<common.IStatsListener> statsListeners;
@@ -45,13 +45,16 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
     // Response time tracking for load balancing
     // Map: barrel identity hashcode -> list of recent response times (in ms)
     private Map<Integer, List<Long>> barrelResponseTimes;
-    private static final int MAX_RESPONSE_SAMPLES = 20; // Keep last 20 response times
+    private static int MAX_RESPONSE_SAMPLES = 20; // Keep last 20 response times
 
     public Gateway() throws RemoteException {
         super();
         this.barrels = new ArrayList<>();
         this.searchFrequency = new ConcurrentHashMap<>();
         this.currentBarrelIndex = 0;
+
+        // Load configuration from system.properties
+        loadConfiguration();
 
         // inicializa cache de pesquisa com eviction LRU
         this.searchCache = Collections.synchronizedMap(
@@ -88,6 +91,46 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
         System.out.println("[Gateway] Recent cache size: " + RECENT_CACHE_SIZE + " URLs");
 
         System.out.println("Gateway initialized with Barrel Registry");
+    }
+
+    /**
+     * Loads configuration from system.properties file
+     */
+    private void loadConfiguration() {
+        try {
+            java.io.InputStream input = Gateway.class.getClassLoader()
+                    .getResourceAsStream("system.properties");
+            if (input != null) {
+                java.util.Properties props = new java.util.Properties();
+                props.load(input);
+
+                // Load Gateway cache and performance settings
+                SEARCH_CACHE_SIZE = Integer.parseInt(
+                        props.getProperty("gateway.search.cache.size", "1000"));
+                RECENT_CACHE_SIZE = Integer.parseInt(
+                        props.getProperty("gateway.recent.cache.size", "10000"));
+                EXPECTED_URLS = Integer.parseInt(
+                        props.getProperty("gateway.bloom.expected.urls", "10000000"));
+                FALSE_POSITIVE_RATE = Double.parseDouble(
+                        props.getProperty("gateway.bloom.false.positive.rate", "0.01"));
+                MAX_RESPONSE_SAMPLES = Integer.parseInt(
+                        props.getProperty("gateway.response.samples", "20"));
+
+                System.out.println("[Gateway] Configuration loaded:");
+                System.out.println("  - Search cache size: " + SEARCH_CACHE_SIZE);
+                System.out.println("  - Recent URL cache size: " + RECENT_CACHE_SIZE);
+                System.out.println("  - Bloom filter expected URLs: " + EXPECTED_URLS);
+                System.out.println("  - Bloom filter FPR: " + (FALSE_POSITIVE_RATE * 100) + "%");
+                System.out.println("  - Response samples: " + MAX_RESPONSE_SAMPLES);
+
+                input.close();
+            } else {
+                System.out.println("[Gateway] Using default configuration values");
+            }
+        } catch (Exception e) {
+            System.err.println("[Gateway] Error loading configuration: " + e.getMessage());
+            System.err.println("[Gateway] Using default values");
+        }
     }
 
     /**
