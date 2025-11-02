@@ -146,9 +146,9 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         // Clear outlinkUrls after conversion - no longer needed, saves memory
         pageInfo.getOutlinkUrls().clear();
 
-        System.out.println("[" + barrelId + "] [DEBUG] Converted " + outlinkCount + " outlinks to docIds. " +
+        /* System.out.println("[" + barrelId + "] [DEBUG] Converted " + outlinkCount + " outlinks to docIds. " +
                 "PageInfo now has: words=" + pageInfo.getWords().size() +
-                " outlinks=" + pageInfo.getOutlinks().size());
+                " outlinks=" + pageInfo.getOutlinks().size()); */
 
         // Atualiza informação da página usando document ID
         PageInfo existing = pageDatabase.get(docId);
@@ -171,8 +171,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         if (tfSize == 0) {
             System.out.println("[" + barrelId + "] [WARNING] PageInfo has no term frequencies for: " + url);
         } else if (docId <= 3) { // Log first 3 pages
-            System.out.println(
-                    "[" + barrelId + "] [DEBUG] Indexed docId=" + docId + " with " + tfSize + " term frequencies");
+            /* System.out.println(
+                    "[" + barrelId + "] [DEBUG] Indexed docId=" + docId + " with " + tfSize + " term frequencies"); */
         }
 
         // Atualiza índice invertido usando document IDs
@@ -445,11 +445,11 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     PageInfo pi = entry.getValue();
                     if (entry.getKey() <= 3) { // Log first 3 pages
                         int tfSize = (pi.getTermFrequencies() != null) ? pi.getTermFrequencies().size() : 0;
-                        System.out.println("[" + barrelId + "] [DEBUG] Saving PageInfo docId=" + entry.getKey() +
+                        /* System.out.println("[" + barrelId + "] [DEBUG] Saving PageInfo docId=" + entry.getKey() +
                                 " words=" + pi.getWords().size() +
                                 " termFreqs=" + tfSize +
                                 " inlinks=" + pi.getInlinks().size() +
-                                " outlinks=" + pi.getOutlinks().size());
+                                " outlinks=" + pi.getOutlinks().size()); */
                     }
                 }
             }
@@ -627,11 +627,11 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                         if (docId <= 3) {
                             int tfSize = (pageInfo.getTermFrequencies() != null) ? pageInfo.getTermFrequencies().size()
                                     : 0;
-                            System.out.println("[" + barrelId + "] [DEBUG] Loaded PageInfo docId=" + docId +
+                            /* System.out.println("[" + barrelId + "] [DEBUG] Loaded PageInfo docId=" + docId +
                                     " words=" + pageInfo.getWords().size() +
                                     " termFreqs=" + tfSize +
                                     " inlinks=" + pageInfo.getInlinks().size() +
-                                    " outlinks=" + pageInfo.getOutlinks().size());
+                                    " outlinks=" + pageInfo.getOutlinks().size()); */
                         }
                     }
                 }
