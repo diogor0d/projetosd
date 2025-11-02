@@ -1060,7 +1060,6 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
             // aguarda que Gateway esteja disponivel antes de fazer bind
             String gatewayUrl = common.RMIConfig.getGatewayRMIUrl();
-            String baseUrl = common.RMIConfig.getRMIBaseUrl();
 
             System.out.println("Waiting for Gateway to be available at " + gatewayUrl + "...");
             boolean gatewayAvailable = false;
@@ -1077,11 +1076,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 }
             }
 
-            // agora faz bind ao registry RMI (Gateway esta a correr)
-            String barrelBindUrl = baseUrl + "/Barrel" + barrelId;
-            java.rmi.Naming.rebind(barrelBindUrl, barrel);
-
-            System.out.println("Storage Barrel " + barrelId + " bound to " + barrelBindUrl);
+            // Barrel ja é exported via UnicastRemoteObject no constructor
+            System.out.println("Storage Barrel " + barrelId + " exported and ready");
 
             // define o timestamp de inicio AGORA - mesmo antes de aceitar pedidos de
             // paginas
