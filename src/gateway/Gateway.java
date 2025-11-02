@@ -224,20 +224,20 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
     @Override
     public void addDiscoveredURL(String url, boolean highPriority) throws RemoteException {
         if (highPriority) {
-            // User request: always add for reindexing, even if already visited
+            // pedido do utilizador: adicionar sempre para reindexação, mesmo se já visitado
             urlQueue.addURL(url, true);
-            // Mark as visited (idempotent operation)
+            // marcar como visitado
             markURLAsVisited(url);
             System.out.println("[Gateway] Added high-priority URL to queue: " + url);
         } else {
-            // Crawled discovery: only add if not previously visited
+            // descoberta por crawling: apenas adicionar se não visitado anteriormente
             if (tryMarkAsVisited(url)) {
                 urlQueue.addURL(url, false);
                 // System.out.println("[Gateway] Added crawled URL to queue: " + url);
                 try {
                     notifyStatsListeners(getSystemStats());
                 } catch (Exception e) {
-                    // ignore
+                    // ignorar
                 }
             } else {
                 // System.out.println("[Gateway] Discarded already visited URL: " + url);
@@ -247,39 +247,40 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
     @Override
     public boolean isURLVisited(String url) throws RemoteException {
-        // Check recent cache first (exact match, no false positives)
+        // verificar cache recente primeiro (correspondência exata, sem falsos
+        // positivos)
         if (recentVisitedURLs.containsKey(url)) {
             return true;
         }
 
-        // Check Bloom filter (can have false positives)
+        // verificar filtro Bloom (pode ter falsos positivos)
         return visitedURLsBloom.mightContain(url);
     }
 
     @Override
     public boolean markURLAsVisited(String url) throws RemoteException {
-        // Add to recent cache
+        // adicionar a cache
         recentVisitedURLs.put(url, Boolean.TRUE);
 
-        // Add to Bloom filter
+        // adicionar ao filtro Bloom
         visitedURLsBloom.put(url);
 
-        // Return true to indicate URL was marked (always succeeds)
+        // retornar verdadeiro para indicar que o URL foi marcado
         return true;
     }
 
     @Override
     public boolean tryMarkAsVisited(String url) throws RemoteException {
-        // Check if already visited
+        // verificar se já foi visitado
         boolean wasVisited = isURLVisited(url);
 
         if (!wasVisited) {
-            // Mark as visited if not already
+            // marcar como visitado se ainda não foi
             markURLAsVisited(url);
-            return true; // Successfully marked (was not visited before)
+            return true; // marcar com sucesso (não foi visitado anteriormente)
         }
 
-        return false; // Was already visited
+        return false; // =já foi visitado
     }
 
     @Override

@@ -4,19 +4,19 @@ import java.io.FileInputStream;
 import java.util.Properties;
 
 /**
- * Centralized RMI configuration utility
- * Reads network configuration from config/system.properties
+ * RMI config centralizada
+ * lê os detalhes de rede de config/system.properties
  */
 public class RMIConfig {
     private static Properties props = null;
     private static final String CONFIG_FILE = "config/system.properties";
 
-    // Default values
+    // valores default
     private static final String DEFAULT_HOST = "localhost";
     private static final String DEFAULT_PORT = "1099";
 
     /**
-     * Load properties from configuration file
+     * carregar propriedades do ficheiro de config
      */
     private static void loadProperties() {
         if (props == null) {
@@ -33,11 +33,11 @@ public class RMIConfig {
     }
 
     // ------------------------------------------------------------------------------
-    // GATEWAY CONFIGURATION (used by Gateway itself and by Barrels/Downloaders)
+    // GATEWAY CONFIG(usado pelo Gateway e Barrels/Downloaders)
     // ------------------------------------------------------------------------------
 
     /**
-     * Get Gateway host (where Gateway RMI registry is running)
+     * host do gateway (onde o gateway esta a correr)
      */
     public static String getGatewayHost() {
         loadProperties();
@@ -45,7 +45,7 @@ public class RMIConfig {
     }
 
     /**
-     * Get Gateway port
+     * porta do gateway
      */
     public static String getGatewayPort() {
         loadProperties();
@@ -53,40 +53,39 @@ public class RMIConfig {
     }
 
     /**
-     * Get Gateway port as integer
+     * porta do gateway como inteiro
      */
     public static int getGatewayPortInt() {
         return Integer.parseInt(getGatewayPort());
     }
 
     /**
-     * Get full Gateway RMI URL (for Gateway service)
+     * Gateway RMI URL completo
      */
     public static String getGatewayRMIUrl() {
         return "rmi://" + getGatewayHost() + ":" + getGatewayPort() + "/Gateway";
     }
 
     /**
-     * Get full BarrelRegistry RMI URL
+     * BarrelRegistry RMI URL completo
      */
     public static String getBarrelRegistryRMIUrl() {
         return "rmi://" + getGatewayHost() + ":" + getGatewayPort() + "/BarrelRegistry";
     }
 
     /**
-     * Get RMI base URL (for binding services)
+     * RMI URL base
      */
     public static String getRMIBaseUrl() {
         return "rmi://" + getGatewayHost() + ":" + getGatewayPort();
     }
 
     // ------------------------------------------------------------------------------
-    // CLIENT CONFIGURATION (allows client to connect to different gateway)
+    // CLIENT CONFIG
     // ------------------------------------------------------------------------------
 
     /**
-     * Get Client's gateway host (may be different from main gateway)
-     * Falls back to gateway.host if not specified
+     * host do gateway do cliente
      */
     public static String getClientGatewayHost() {
         loadProperties();
@@ -99,8 +98,7 @@ public class RMIConfig {
     }
 
     /**
-     * Get Client's gateway port
-     * Falls back to gateway.port if not specified
+     * porta da gateway do cliente
      */
     public static String getClientGatewayPort() {
         loadProperties();
@@ -113,25 +111,21 @@ public class RMIConfig {
     }
 
     /**
-     * Get Client's gateway port as integer
+     * porta da gateway do cliente como int
      */
     public static int getClientGatewayPortInt() {
         return Integer.parseInt(getClientGatewayPort());
     }
 
     /**
-     * Get full Gateway RMI URL for Client
+     * url completo da gateway para clientes
      */
     public static String getClientGatewayRMIUrl() {
         return "rmi://" + getClientGatewayHost() + ":" + getClientGatewayPort() + "/Gateway";
     }
 
-    // ------------------------------------------------------------------------------
-    // UTILITY METHODS
-    // ------------------------------------------------------------------------------
-
     /**
-     * Print current configuration (for debugging)
+     * print da config para debug
      */
     public static void printConfig(String componentName) {
         System.out.println("[" + componentName + "] RMI Configuration:");
@@ -149,7 +143,7 @@ public class RMIConfig {
     }
 
     /**
-     * Check if configuration file exists and is readable
+     * verificar se o ficheiro de configuração está disponível e legível
      */
     public static boolean isConfigAvailable() {
         try {
