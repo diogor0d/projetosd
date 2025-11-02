@@ -47,6 +47,14 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     private volatile String syncPeerBarrelId = null; // de que peer estamos a fazer sync
     private volatile int syncProgress = 0; // percentagem de progresso do sync (0-100)
 
+    // configuracoes carregadas de system.properties
+    private static int HEALTH_INTERVAL_MS = 5000; // intervalo de health check em ms
+    private static int SHUTDOWN_MS = 500; // tempo de espera para shutdown em ms
+    private static int SAVE_TIMEOUT_MS = 10000; // timeout para gravar indice em ms
+    private static int CHUNK_SIZE = 100; // tamanho do chunk para sincronizacao
+    private static int RMI_PORT = 1099; // porta RMI
+    private static String RMI_HOST = "localhost"; // hostname RMI
+
     public StorageBarrel(String barrelId) throws RemoteException {
         super();
         this.barrelId = barrelId;
@@ -1245,31 +1253,5 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             System.err.println("Barrel exception:");
             e.printStackTrace();
         }
-    }}
-
-    
-            
-     
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-
-    
-    
-    
-    
-
-    
-    
-    
-    
-
-    
-    
+    }
+}
