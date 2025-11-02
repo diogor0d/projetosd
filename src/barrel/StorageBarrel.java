@@ -65,6 +65,12 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             props.load(fis);
             fis.close();
             useSavedIndex = Boolean.parseBoolean(props.getProperty("barrel.use.saved.index", "true"));
+            HEALTH_INTERVAL_MS = Integer.parseInt(props.getProperty("barrel.health.interval.ms", "5000"));
+            SHUTDOWN_MS = Integer.parseInt(props.getProperty("barrel.shutdown.ms", "500"));
+            SAVE_TIMEOUT_MS = Integer.parseInt(props.getProperty("barrel.save.timeout.ms", "10000"));
+            CHUNK_SIZE = Integer.parseInt(props.getProperty("barrel.sync.chunk.size", "100"));
+            RMI_PORT = Integer.parseInt(props.getProperty("rmi.port", "1099"));
+            RMI_HOST = props.getProperty("rmi.hostname", "localhost");
         } catch (Exception e) {
             System.err.println("Warning: Could not load config file for barrel. Using defaults.");
         }
@@ -969,7 +975,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 // sincroniza em chunks, apenas paginas de ANTES do inicio do barrel
                 // nota: cada chamada RMI e tratada por uma thread separada no peer barrel
                 // o peer barrel continua a servir outros pedidos em paralelo
-                int chunkSize = 100;
+                int chunkSize = CHUNK_SIZE;
                 int offset = 0;
                 int totalSynced = 0;
 
@@ -1123,7 +1129,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     System.out.println("Entering health monitoring loop...");
                     while (registered && keepRunning[0]) {
                         try {
-                            Thread.sleep(5000); // verifica a cada 5 segundos
+                            Thread.sleep(HEALTH_INTERVAL_MS); // verifica a cada 5 segundos
                             // obtem referencia fresca do registry para cada ping
                             String registryUrl = common.RMIConfig.getBarrelRegistryRMIUrl();
                             IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming.lookup(registryUrl);
@@ -1166,7 +1172,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
                     // da um momento para pedidos em curso completarem
                     try {
-                        Thread.sleep(500);
+                        Thread.sleep(SHUTDOWN_MS);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
@@ -1184,7 +1190,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
                     try {
                         // aguarda ate 10 segundos para gravacao completar
-                        saveThread.join(10000);
+                        saveThread.join(SAVE_TIMEOUT_MS);
 
                         if (saveThread.isAlive()) {
                             System.err.println("[" + barrelId + "] Save operation timed out after 10 seconds!");
@@ -1239,5 +1245,31 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             System.err.println("Barrel exception:");
             e.printStackTrace();
         }
-    }
-}
+    }}
+
+    
+            
+     
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+
+    
+    
+    
+    
+
+    
+    
