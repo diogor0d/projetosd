@@ -179,6 +179,67 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
     }
 
     @Override
+    public void addDiscoveredURL(String url, boolean highPriority) throws RemoteException {
+        if (highPriority) {
+            // User request: always add for reindexing, even if already visited
+            urlQueue.addURL(url, true);
+            // Mark as visited (idempotent operation)
+            markURLAsVisited(url);
+            System.out.println("[Gateway] Added high-priority URL to queue: " + url);
+        } else {
+            // Crawled discovery: only add if not previously visited
+            if (tryMarkAsVisited(url)) {
+                urlQueue.addURL(url, false);
+                // System.out.println("[Gateway] Added crawled URL to queue: " + url);
+                try {
+                    notifyStatsListeners(getSystemStats());
+                } catch (Exception e) {
+                    // ignore
+                }
+            } else {
+                // System.out.println("[Gateway] Discarded already visited URL: " + url);
+            }
+        }
+    }
+
+    @Override
+    public boolean isURLVisited(String url) throws RemoteException {
+        // Check recent cache first (exact match, no false positives)
+        if (recentVisitedURLs.containsKey(url)) {
+            return true;
+        }
+
+        // Check Bloom filter (can have false positives)
+        return visitedURLsBloom.mightContain(url);
+    }
+
+    @Override
+    public boolean markURLAsVisited(String url) throws RemoteException {
+        // Add to recent cache
+        recentVisitedURLs.put(url, Boolean.TRUE);
+
+        // Add to Bloom filter
+        visitedURLsBloom.put(url);
+
+        // Return true to indicate URL was marked (always succeeds)
+        return true;
+    }
+
+    @Override
+    public boolean tryMarkAsVisited(String url) throws RemoteException {
+        // Check if already visited
+        boolean wasVisited = isURLVisited(url);
+
+        if (!wasVisited) {
+            // Mark as visited if not already
+            markURLAsVisited(url);
+            return true; // Successfully marked (was not visited before)
+        }
+
+        return false; // Was already visited
+    }
+
+    @Override
     public List<SearchResult> search(String query, int page) throws RemoteException {
         // normaliza query
         String normalizedQuery = query.toLowerCase().trim();
@@ -432,6 +493,16 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
     public URLQueue getUrlQueue() {
         return urlQueue;
+    }
+
+    @Override
+    public String getNextURL() throws RemoteException {
+        try {
+            return urlQueue.getNextURL();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RemoteException("Interrupted while getting next URL", e);
+        }
     }
 
     @Override

@@ -67,6 +67,17 @@ public interface IGateway extends Remote {
     boolean markURLAsVisited(String url) throws RemoteException;
 
     /**
+     * Atomically check if URL is unvisited and mark it as visited if so.
+     * This prevents race conditions where multiple downloaders try to process the
+     * same URL.
+     * 
+     * @param url URL to check and mark
+     * @return true if URL was NOT visited (and is now marked), false if already
+     *         visited
+     */
+    boolean tryMarkAsVisited(String url) throws RemoteException;
+
+    /**
      * Adiciona um URL descoberto à fila (com prioridade normal)
      * 
      * @param url          URL descoberto
