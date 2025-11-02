@@ -83,17 +83,18 @@ public interface IGateway extends Remote {
     String getURLQueueStatus() throws RemoteException;
 
     /**
-     * Register a remote listener to receive real-time SystemStats updates pushed
-     * by the Gateway.
+     * regista um listener remoto para receber atualizações em tempo real de
+     * SystemStats
+     * enviadas pelo Gateway.
      *
-     * @param listener remote listener implementing IStatsListener
+     * @param listener listener remoto a implementar IStatsListener
      */
     void registerStatsListener(IStatsListener listener) throws RemoteException;
 
     /**
-     * Unregister a previously registered stats listener.
+     * Unregister a de um listener remoto previamente registado.
      *
-     * @param listener remote listener to remove
+     * @param listener listener remoto a remover
      */
     void unregisterStatsListener(IStatsListener listener) throws RemoteException;
 }

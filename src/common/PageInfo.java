@@ -7,22 +7,23 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Classe que representa informação sobre uma página Web indexada
+ * classe que representa informação sobre uma página Web indexada
  */
 public class PageInfo implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String url;
     private String title;
-    private String textSnippet; // Citação de texto
-    private Set<String> words; // Palavras encontradas na página
-    private Map<String, Integer> termFrequencies; // TF: word -> frequency count (calculated by Downloader)
+    private String textSnippet; // texto curto da página
+    private Set<String> words; // coleçao de palavras encontradas na página
+    private Map<String, Integer> termFrequencies; // TF: word -> frequency count (calculada pelo downloader)
     private Set<Integer> inlinks; // Document IDs que apontam para esta página (backlinks)
     private Set<Integer> outlinks; // Document IDs para onde esta página aponta
-    private long indexedTimestamp; // Timestamp when page was indexed (milliseconds since epoch)
+    private long indexedTimestamp; // Timestamp de quando a página foi indexada
 
-    // Temporary storage for outlink URLs (used by Downloader, sent via RMI, then
-    // converted to docIds by barrel)
+    // Armazenamento temporário para URLs de outlinks (usado pelo Downloader,
+    // enviado via RMI, então
+    // convertido para docIds pelo barrel)
     private Set<String> outlinkUrls;
 
     public PageInfo(String url) {
@@ -32,7 +33,7 @@ public class PageInfo implements Serializable {
         this.inlinks = new HashSet<>();
         this.outlinks = new HashSet<>();
         this.outlinkUrls = new HashSet<>();
-        this.indexedTimestamp = System.currentTimeMillis(); // Set timestamp at creation
+        this.indexedTimestamp = System.currentTimeMillis(); // definir a timestamp na criacao
     }
 
     // Getters e Setters
@@ -104,8 +105,8 @@ public class PageInfo implements Serializable {
         this.outlinks.add(docId);
     }
 
-    // Overloaded method for Downloader to add outlinks as URLs (before conversion
-    // to docIds)
+    // Overloaded method para o Downloader adicionar outlinks como URLs (antes da
+    // conversão para docIds)
     public void addOutlink(String outlinkUrl) {
         if (this.outlinkUrls == null) {
             this.outlinkUrls = new HashSet<>();

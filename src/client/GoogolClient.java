@@ -8,25 +8,25 @@ import java.util.List;
 import java.util.Scanner;
 
 /**
- * ANSI color codes for terminal colors
- * Auto-disables when colors are not supported (e.g., Maven output)
- * Set -DforceColor=true or FORCE_COLOR=1 env var to enable colors in Maven
+ * codigos de cor ANSI para cores de terminal
+ * desativa automaticamente quando cores nao sao suportadas (e.g., output Maven)
+ * define -DforceColor=true ou FORCE_COLOR=1 env var para ativar cores no Maven
  */
 class Colors {
-    // Detect if colors are supported or force-enabled
+    // deteta se cores sao suportadas ou forcadas
     private static final boolean COLORS_ENABLED = "true".equalsIgnoreCase(System.getProperty("forceColor")) ||
             "1".equals(System.getenv("FORCE_COLOR")) ||
             (System.console() != null && System.getenv().get("TERM") != null);
 
-    // Helper method to return color code or empty string
+    // metodo auxiliar para retornar codigo de cor ou string vazia
     private static String color(String code) {
         return COLORS_ENABLED ? code : "";
     }
 
-    // Reset
+    // reset
     public static final String RESET = color("\033[0m");
 
-    // Regular colors
+    // cores regulares
     public static final String BLACK = color("\033[0;30m");
     public static final String RED = color("\033[0;31m");
     public static final String GREEN = color("\033[0;32m");
@@ -36,7 +36,7 @@ class Colors {
     public static final String CYAN = color("\033[0;36m");
     public static final String WHITE = color("\033[0;37m");
 
-    // Bold
+    // negrito
     public static final String BOLD = color("\033[1m");
     public static final String BOLD_RED = color("\033[1;31m");
     public static final String BOLD_GREEN = color("\033[1;32m");
@@ -46,31 +46,31 @@ class Colors {
     public static final String BOLD_CYAN = color("\033[1;36m");
     public static final String BOLD_WHITE = color("\033[1;97m");
 
-    // Background
+    // fundo
     public static final String BG_BLUE = color("\033[44m");
     public static final String BG_GREEN = color("\033[42m");
     public static final String BG_RED = color("\033[41m");
 }
 
 /**
- * Cliente RMI para interagir com o sistema Googol
+ * cliente RMI para interagir com o sistema Googol
  */
 public class GoogolClient {
 
-    private volatile IGateway gateway; // volatile for thread-safe reconnection
+    private volatile IGateway gateway; // volatile para reconexao segura entre threads
     private Scanner scanner;
     private volatile boolean connected;
-    private volatile boolean running; // Track if client should keep running
+    private volatile boolean running; // controla se o cliente deve continuar em execucao
 
     public GoogolClient() {
         scanner = new Scanner(System.in);
         connected = false;
         running = true;
 
-        // Add shutdown hook for clean exit on Ctrl+C
+        // adiciona um shutdown hook para saida limpa ao pressionar Ctrl+C
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                // Flush output streams to avoid Maven/Jansi issues
+                // faz flush aos streams de output para evitar problemas Maven/Jansi
                 System.out.flush();
                 System.err.flush();
 
@@ -78,20 +78,20 @@ public class GoogolClient {
                 if (scanner != null) {
                     scanner.close();
                 }
-                // Clear screen and show clean goodbye message
+                // limpa o ecra e apresenta mensagem de despedida
                 System.out.print("\033[H\033[2J");
                 System.out.flush();
                 System.out.println(Colors.BOLD_CYAN + "\n👋 Thank you for using Googol!" + Colors.RESET);
                 System.out.println(Colors.CYAN + "Goodbye!\n" + Colors.RESET);
                 System.out.flush();
             } catch (Exception e) {
-                // Suppress output errors during shutdown (Maven/Jansi issues)
+                // suprime erros de output durante shutdown (problemas Maven/Jansi)
             }
         }));
     }
 
     /**
-     * Clears the screen (works in most terminals)
+     * limpa o ecra (funciona na maioria dos terminais)
      */
     private void clearScreen() {
         System.out.print("\033[H\033[2J");
@@ -99,7 +99,7 @@ public class GoogolClient {
     }
 
     /**
-     * Prints the Googol banner
+     * imprime o banner do Googol
      */
     private void printBanner() {
         System.out.println(Colors.BOLD_CYAN);
@@ -123,7 +123,7 @@ public class GoogolClient {
         System.out.println("║                                                           ║");
         System.out.println("╚═══════════════════════════════════════════════════════════╝");
         System.out.println(Colors.RESET);
-        // sleep for 1.5s
+        // sleep 1.5s
         try {
             Thread.sleep(1500);
         } catch (InterruptedException e) {
@@ -132,7 +132,8 @@ public class GoogolClient {
     }
 
     /**
-     * Attempts to connect to gateway indefinitely with retry logic
+     * tenta reconectar ao gateway RMI indefinidamente atraves de uma logica de
+     * reconexao
      */
     private void connectToGateway() {
         clearScreen();
@@ -142,7 +143,7 @@ public class GoogolClient {
         System.out.println();
 
         try {
-            Thread.sleep(500); // 1 second delay
+            Thread.sleep(500); // delay de 1 segundo
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -155,10 +156,10 @@ public class GoogolClient {
                 System.out.flush();
 
                 IGateway tempGateway = (IGateway) Naming.lookup("rmi://localhost/Gateway");
-                // Verify connection is alive
+                // verifica se a conexao esta funcional
                 tempGateway.getSystemStats();
 
-                gateway = tempGateway; // Update reference
+                gateway = tempGateway; // atualiza referencia
                 connected = true;
 
                 System.out.print("\r" + Colors.CYAN + "   Attempt " + attempts + "... " + Colors.BOLD_GREEN
@@ -183,13 +184,12 @@ public class GoogolClient {
                     Thread.currentThread().interrupt();
                     return;
                 }
-                // Don't print newline - let next attempt overwrite this line
             }
         }
     }
 
     /**
-     * Executes a gateway operation with automatic reconnection on failure
+     * executa uma operacao no gateway com reconexao automatica em caso de falha
      */
     private <T> T executeWithReconnect(GatewayOperation<T> operation) throws Exception {
         while (true) {
@@ -200,32 +200,29 @@ public class GoogolClient {
                 return operation.execute(gateway);
 
             } catch (RemoteException e) {
-                // Check if this is a validation/business logic error (not a connection issue)
+                // verifica se se trata de um erro de validacao/logica de negocio (e nao um
+                // problema de conexao)
                 String errorMsg = e.getMessage();
                 if (errorMsg != null && (errorMsg.contains("Invalid URL")
                         || errorMsg.contains("already indexed")
                         || errorMsg.contains("No active barrels"))) {
-                    // This is a validation/business error (e.g. no barrels available), not a
-                    // connection problem
-                    // Propagate to the caller so it can display a helpful message instead of
-                    // triggering reconnects
                     throw e;
                 }
 
-                // Otherwise, treat as a connection problem - try to reconnect
+                // caso contrario, trata-se como um problema de conexao - tenta reconectar
                 System.out.println();
                 System.out.println(Colors.BOLD_RED + "⚠ Connection Lost!" + Colors.RESET);
                 connected = false;
-                gateway = null; // Clear old reference
+                gateway = null; // limpa referencia antiga
                 System.out.println(Colors.YELLOW + "🔄 Reconnecting..." + Colors.RESET);
                 connectToGateway();
-                // Retry operation after reconnection
+                // tenta operacao apos reconexao
             }
         }
     }
 
     /**
-     * Functional interface for gateway operations
+     * interface funcional para operacoes do gateway
      */
     @FunctionalInterface
     private interface GatewayOperation<T> {
@@ -233,14 +230,14 @@ public class GoogolClient {
     }
 
     public void run() {
-        // Initial connection
+        // conexao inicial
         connectToGateway();
 
         while (running) {
             try {
                 printMenu();
 
-                // Check if scanner has input available (prevents exception on Ctrl+C)
+                // verifica se scanner tem input disponivel (previne excepcao no Ctrl+C)
                 if (!scanner.hasNextLine()) {
                     break;
                 }
@@ -281,14 +278,14 @@ public class GoogolClient {
                             scanner.nextLine();
                         }
                     } catch (Exception e) {
-                        // Scanner closed - exit gracefully
+                        // scanner fechado - sai graciosamente
                         running = false;
                         break;
                     }
                 }
 
             } catch (java.util.NoSuchElementException | IllegalStateException e) {
-                // Scanner closed (Ctrl+C pressed) - exit gracefully
+                // scanner fechado (Ctrl+C pressionado) - sai graciosamente
                 running = false;
                 break;
             } catch (Exception e) {
@@ -299,12 +296,12 @@ public class GoogolClient {
             }
         }
 
-        // Clean close - shutdown hook will handle display
+        // fecho limpo - shutdown hook vai tratar da apresentacao
         if (scanner != null && !Thread.currentThread().isInterrupted()) {
             try {
                 scanner.close();
             } catch (Exception e) {
-                // Ignore
+                // ignora
             }
         }
     }
@@ -365,7 +362,7 @@ public class GoogolClient {
             System.out.println(Colors.BOLD_GREEN + "✓ URL submitted successfully!" + Colors.RESET);
             System.out.println(Colors.WHITE + "  URL: " + Colors.CYAN + finalUrl + Colors.RESET);
         } catch (RemoteException e) {
-            // Handle validation errors from Gateway
+            // trata erros de validacao do Gateway
             String errorMsg = e.getMessage();
             if (errorMsg != null && errorMsg.contains("Invalid URL")) {
                 System.out.println(Colors.BOLD_RED + "\n❌ Invalid URL!" + Colors.RESET);
@@ -375,7 +372,7 @@ public class GoogolClient {
                 System.out.println(
                         Colors.YELLOW + "   This URL has already been processed by the system." + Colors.RESET);
             } else {
-                throw e; // Re-throw other exceptions
+                throw e; // relanca outras excecoes
             }
         }
     }
@@ -410,7 +407,8 @@ public class GoogolClient {
             } catch (RemoteException e) {
                 String errorMsg = e.getMessage();
                 if (errorMsg != null && errorMsg.contains("No active barrels")) {
-                    // Friendly message instead of reconnecting or dumping raw exception
+                    // mensagem amigavel em vez de reconectar ou despejar excepcao sem nada
+                    // adicional
                     clearScreen();
                     System.out.println(Colors.YELLOW + "\n😕 No indexed data available yet." + Colors.RESET);
                     System.out.println(Colors.YELLOW
@@ -423,9 +421,9 @@ public class GoogolClient {
                             scanner.nextLine();
                         }
                     } catch (Exception ie) {
-                        // Ignore scanner issues
+                        // ignora problemas do scanner
                     }
-                    break; // return to main menu
+                    break; // retorna ao menu principal
                 }
                 throw e;
             }
@@ -439,7 +437,7 @@ public class GoogolClient {
                 } else {
                     System.out.println(Colors.YELLOW + "\n📭 No more results." + Colors.RESET);
                 }
-                // Pause so the user can read the message before returning to the menu
+                // pausa para que o utilizador possa ler a mensagem antes de retornar ao menu
                 System.out.println();
                 System.out.print(Colors.YELLOW + "Press Enter to return to the menu..." + Colors.RESET);
                 try {
@@ -447,7 +445,7 @@ public class GoogolClient {
                         scanner.nextLine();
                     }
                 } catch (Exception ie) {
-                    // Ignore scanner issues and continue
+                    // ignora problemas do scanner e continua
                 }
                 break;
             }
@@ -545,11 +543,12 @@ public class GoogolClient {
     }
 
     private void showStatistics() throws Exception {
-        // Register a remote stats listener and show real-time pushed updates
+        // regista um listener de estatisticas remoto e mostra atualizacoes em tempo
+        // real
         clearScreen();
         System.out.println(Colors.YELLOW + "⏳ Subscribing to live statistics (press Enter to stop)" + Colors.RESET);
 
-        // Create and export a remote listener
+        // cria e exporta um listener remoto
         IStatsListener listener = new IStatsListenerImpl();
 
         try {
@@ -558,32 +557,33 @@ public class GoogolClient {
                 return null;
             });
 
-            // Wait until user presses Enter to stop live updates
+            // aguarda ate o utilizador pressionar Enter para parar atualizacoes ao vivo
             System.out.println();
             scanner.nextLine();
 
         } finally {
-            // Unregister and unexport listener
+            // remove registo e unexporta listener
             try {
                 executeWithReconnect(gw -> {
                     gw.unregisterStatsListener(listener);
                     return null;
                 });
             } catch (Exception e) {
-                // ignore
+                // ignora
             }
 
             try {
                 UnicastRemoteObject.unexportObject(listener, true);
             } catch (Exception e) {
-                // ignore
+                // ignora
             }
         }
     }
 
     /**
-     * Simple remote listener implementation that prints incoming stats in real
-     * time.
+     * implementacao simples de listener remoto que imprime estatisticas recebidas
+     * em tempo
+     * real.
      */
     private class IStatsListenerImpl extends UnicastRemoteObject implements IStatsListener {
         protected IStatsListenerImpl() throws RemoteException {
@@ -592,7 +592,7 @@ public class GoogolClient {
 
         @Override
         public void updateStats(SystemStats stats) throws RemoteException {
-            // Print stats in a clean screen region
+            // imprime estatisticas numa regiao limpa do ecra
             synchronized (System.out) {
                 clearScreen();
                 System.out.println(Colors.BOLD_CYAN + "\n╔═══════════════════════════════════════╗" + Colors.RESET);

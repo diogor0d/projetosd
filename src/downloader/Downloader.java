@@ -391,6 +391,9 @@ public class Downloader implements Runnable {
         }
 
         // extrai palavras e calcula Term Frequency (TF), filtrando stopwords
+
+        // aproveita-se o facto do downloader efetuar o processamento das palavras de
+        // qualquer forma: offload de trabalho para os barrels
         String[] words = bodyText.toLowerCase().split("\\W+");
         Map<String, Integer> termFrequencies = new HashMap<>();
 
@@ -421,9 +424,6 @@ public class Downloader implements Runnable {
         return pageInfo;
     }
 
-    /**
-     * carrega stopwords de data/stopwords-en.txt e data/stopwords-pt.txt
-     */
     private boolean isValidURL(String url) {
         try {
             URI uri = URI.create(url);

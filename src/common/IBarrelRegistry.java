@@ -5,45 +5,45 @@ import java.rmi.RemoteException;
 import java.util.List;
 
 /**
- * Registry service to track all active barrels
- * Enables downloader multicast functionality
+ * Servico para registar os barrels ativos no sistema
+ * backbone do sistema de indexação distribuída
  */
 public interface IBarrelRegistry extends Remote {
 
     /**
-     * Register a barrel in the system
+     * registar um barrel no sistema
      * 
-     * @param barrelId Unique barrel identifier
-     * @param barrel   The barrel RMI reference
+     * @param barrelId identificador do barril
+     * @param barrel   referencia da interface rmi do barril
      */
     void registerBarrel(String barrelId, IBarrel barrel) throws RemoteException;
 
     /**
-     * Unregister a barrel from the system
+     * unregister de barril do sistema
      * 
-     * @param barrelId Barrel identifier to remove
+     * @param barrelId identificador do barril a remover
      */
     void unregisterBarrel(String barrelId) throws RemoteException;
 
     /**
-     * Get list of all active barrels
+     * get da lista de barrels ativos. atualiza a lista removendo barrels mortos
      * 
-     * @return List of active barrel RMI references
+     * @return lista de barrels ativos
      */
     List<IBarrel> getAllBarrels() throws RemoteException;
 
     /**
-     * Get count of active barrels
+     * get da contagem de barris ativos
      * 
-     * @return Number of registered barrels
+     * @return numero de barris registados
      */
     int getBarrelCount() throws RemoteException;
 
     /**
-     * Check if a specific barrel is registered
+     * verificar se um barrel especifico está registado
      * 
-     * @param barrelId Barrel identifier
-     * @return true if barrel is registered
+     * @param barrelId identificador do barrel
+     * @return true se o barrel está registado
      */
     boolean isBarrelRegistered(String barrelId) throws RemoteException;
 }

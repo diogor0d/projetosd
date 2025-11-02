@@ -6,16 +6,16 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * TextUtils - Utility methods for text processing
- * Shared utilities to avoid code duplication across components
+ * TextUtils - metodos auxiliares para o tratamento de texto
+ * metodos para evitar duplicação e codigo entre classes
  */
 public class TextUtils {
 
     /**
-     * Loads stopwords from specified files
-     * 
-     * @param componentId - ID of the component loading stopwords (for logging)
-     * @return Set of lowercase stopwords
+     * Carrega stopwords atraves dos ficheiros especificados
+     *
+     * @param componentId - ID do componente a carregar stopwords (para logging)
+     * @return Conjunto de stopwords em minusculas
      */
     public static Set<String> loadStopwords(String componentId) {
         Set<String> stopwords = new HashSet<>();

@@ -51,42 +51,42 @@ public interface IBarrel extends Remote {
     int getIndexSize() throws RemoteException;
 
     /**
-     * Gets the barrel's unique identifier
+     * fornece o identificador unico do barrel
      */
     String getBarrelId() throws RemoteException;
 
     /**
-     * Gets a chunk of pages indexed before a specific timestamp (for
-     * synchronization)
      * 
-     * @param beforeTimestamp Only return pages indexed before this timestamp
-     *                        (millis since epoch)
-     * @param offset          Starting index
-     * @param limit           Maximum number of pages to return
-     * @return List of PageInfo objects indexed before the timestamp
+     * fornece um chunk de paginas indexadas antes de uma timestamp espeficia (para
+     * o feature de sincronizacao)
+     * 
+     * @param beforeTimestamp retornar páginas indexadas antes desta timestamp
+     * @param offset          indice inicial do chunk
+     * @param limit           Número máximo de páginas a retornar
+     * @return Lista de objetos PageInfo indexados antes da timestamp
      */
     List<PageInfo> getPageChunkBeforeTimestamp(long beforeTimestamp, int offset, int limit) throws RemoteException;
 
     /**
-     * Gets the count of pages indexed before a specific timestamp
+     * Obtém a contagem de páginas indexadas antes de uma timestamp específica
      * 
-     * @param beforeTimestamp Timestamp to compare against
-     * @return Number of pages indexed before the timestamp
+     * @param beforeTimestamp Timestamp a comparar
+     * @return Número de páginas indexadas antes da timestamp
      */
     int getIndexSizeBeforeTimestamp(long beforeTimestamp) throws RemoteException;
 
     /**
-     * Bulk imports pages from another barrel (for synchronization)
+     * importacao em massa de paginas (para sincronizacao)
      * 
-     * @param pages List of pages to import
+     * @param pages Lista de páginas a importar
      */
     void bulkImportPages(List<PageInfo> pages) throws RemoteException;
 
     /**
-     * Gets the timestamp of the most recently indexed page in this barrel
+     * Obtém a timestamp da página mais recentemente indexada neste barrel
      * 
-     * @return Timestamp of the newest page (millis since epoch), or 0 if index is
-     *         empty
+     * @return Timestamp da página mais recente, ou 0 se o índice estiver
+     *         vazio
      */
     long getMostRecentPageTimestamp() throws RemoteException;
 }

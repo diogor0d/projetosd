@@ -146,9 +146,12 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         // limpa outlinkUrls apos conversao - ja nao sao necessarios, poupa memoria
         pageInfo.getOutlinkUrls().clear();
 
-        /* System.out.println("[" + barrelId + "] [DEBUG] Converted " + outlinkCount + " outlinks to docIds. " +
-                "PageInfo now has: words=" + pageInfo.getWords().size() +
-                " outlinks=" + pageInfo.getOutlinks().size()); */
+        /*
+         * System.out.println("[" + barrelId + "] [DEBUG] Converted " + outlinkCount +
+         * " outlinks to docIds. " +
+         * "PageInfo now has: words=" + pageInfo.getWords().size() +
+         * " outlinks=" + pageInfo.getOutlinks().size());
+         */
 
         // atualiza informacao da pagina usando document ID
         PageInfo existing = pageDatabase.get(docId);
@@ -171,8 +174,11 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         if (tfSize == 0) {
             System.out.println("[" + barrelId + "] [WARNING] PageInfo has no term frequencies for: " + url);
         } else if (docId <= 3) { // log primeiras 3 paginas
-            /* System.out.println(
-                    "[" + barrelId + "] [DEBUG] Indexed docId=" + docId + " with " + tfSize + " term frequencies"); */
+            /*
+             * System.out.println(
+             * "[" + barrelId + "] [DEBUG] Indexed docId=" + docId + " with " + tfSize +
+             * " term frequencies");
+             */
         }
 
         // atualiza indice invertido usando document IDs
@@ -182,7 +188,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         }
 
         // atualiza backlinks (inlinks) das paginas referenciadas
-        // cria placeholder PageInfo para paginas ainda nao indexadas para rastrear inlinks
+        // cria placeholder PageInfo para paginas ainda nao indexadas para rastrear
+        // inlinks
         for (Integer outlinkDocId : pageInfo.getOutlinks()) {
             String outlinkUrl = getUrlForDocId(outlinkDocId);
             PageInfo outlinkedPage = pageDatabase.computeIfAbsent(outlinkDocId, k -> new PageInfo(outlinkUrl));
@@ -256,7 +263,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             pageInfo.getInlinkCount(),
                             tfIdfScore);
                 })
-                // ordena por score TF-IDF (descendente), depois por contagem de inlinks (desempate)
+                // ordena por score TF-IDF (descendente), depois por contagem de inlinks
+                // (desempate)
                 .sorted((r1, r2) -> {
                     int scoreCompare = Double.compare(r2.getTfIdfScore(), r1.getTfIdfScore());
                     if (scoreCompare != 0) {
@@ -340,7 +348,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     @Override
     public BarrelStats getStats() throws RemoteException {
         // tempo de resposta agora e gerido pelo Gateway
-        // inclui estado de sincronizacao e informacao de peers para estatisticas ao vivo
+        // inclui estado de sincronizacao e informacao de peers para estatisticas ao
+        // vivo
         // usa getIndexSize() para contar apenas paginas com conteudo (nao placeholders)
         return new BarrelStats(
                 barrelId,
@@ -364,7 +373,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     @Override
     public int getIndexSize() throws RemoteException {
-        // conta apenas paginas com conteudo real (nao placeholders vazios para backlinks)
+        // conta apenas paginas com conteudo real (nao placeholders vazios para
+        // backlinks)
         int count = 0;
         int totalPages = pageDatabase.size();
         for (PageInfo page : pageDatabase.values()) {
@@ -445,11 +455,14 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     PageInfo pi = entry.getValue();
                     if (entry.getKey() <= 3) { // mostra log das primeiras 3 paginas
                         int tfSize = (pi.getTermFrequencies() != null) ? pi.getTermFrequencies().size() : 0;
-                        /* System.out.println("[" + barrelId + "] [DEBUG] Saving PageInfo docId=" + entry.getKey() +
-                                " words=" + pi.getWords().size() +
-                                " termFreqs=" + tfSize +
-                                " inlinks=" + pi.getInlinks().size() +
-                                " outlinks=" + pi.getOutlinks().size()); */
+                        /*
+                         * System.out.println("[" + barrelId + "] [DEBUG] Saving PageInfo docId=" +
+                         * entry.getKey() +
+                         * " words=" + pi.getWords().size() +
+                         * " termFreqs=" + tfSize +
+                         * " inlinks=" + pi.getInlinks().size() +
+                         * " outlinks=" + pi.getOutlinks().size());
+                         */
                     }
                 }
             }
@@ -627,11 +640,14 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                         if (docId <= 3) {
                             int tfSize = (pageInfo.getTermFrequencies() != null) ? pageInfo.getTermFrequencies().size()
                                     : 0;
-                            /* System.out.println("[" + barrelId + "] [DEBUG] Loaded PageInfo docId=" + docId +
-                                    " words=" + pageInfo.getWords().size() +
-                                    " termFreqs=" + tfSize +
-                                    " inlinks=" + pageInfo.getInlinks().size() +
-                                    " outlinks=" + pageInfo.getOutlinks().size()); */
+                            /*
+                             * System.out.println("[" + barrelId + "] [DEBUG] Loaded PageInfo docId=" +
+                             * docId +
+                             * " words=" + pageInfo.getWords().size() +
+                             * " termFreqs=" + tfSize +
+                             * " inlinks=" + pageInfo.getInlinks().size() +
+                             * " outlinks=" + pageInfo.getOutlinks().size());
+                             */
                         }
                     }
                 }
@@ -754,23 +770,24 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     }
 
     /**
-     * Internal indexing method that can optionally skip save operations
+     * metodo interno de indexacao que pode opcionalmente saltar operacoes de
+     * gravacao
      */
     private void indexPageInternal(PageInfo pageInfo, boolean triggerSave) throws RemoteException {
         String url = pageInfo.getUrl();
         int docId = getOrCreateDocId(url);
 
-        // Convert outlink URLs to docIds
+        // converte URLs de outlinks para docIds
         Set<Integer> outlinkDocIds = new HashSet<>();
         for (String outlinkUrl : pageInfo.getOutlinkUrls()) {
             int outlinkDocId = getOrCreateDocId(outlinkUrl);
             outlinkDocIds.add(outlinkDocId);
         }
 
-        // Check if page already exists
+        // verifica se pagina ja existe
         PageInfo existing = pageDatabase.get(docId);
         if (existing != null) {
-            // Update existing page
+            // atualiza pagina existente
             existing.setTitle(pageInfo.getTitle());
             existing.setTextSnippet(pageInfo.getTextSnippet());
             existing.setWords(pageInfo.getWords());
@@ -778,18 +795,19 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             existing.getOutlinks().clear();
             existing.getOutlinks().addAll(outlinkDocIds);
         } else {
-            // New page
+            // pagina nova
             pageInfo.getOutlinks().clear();
             pageInfo.getOutlinks().addAll(outlinkDocIds);
             pageDatabase.put(docId, pageInfo);
         }
 
-        // Update inverted index
+        // atualiza indice invertido
         for (String word : pageInfo.getWords()) {
             invertedIndex.computeIfAbsent(word, k -> ConcurrentHashMap.newKeySet()).add(docId);
         }
 
-        // Update backlinks (create placeholders if needed, just like regular indexPage)
+        // atualiza backlinks (cria placeholders se necessario, tal como indexPage
+        // regular)
         for (Integer outlinkDocId : outlinkDocIds) {
             String outlinkUrl = getUrlForDocId(outlinkDocId);
             if (outlinkUrl != null) {
@@ -807,7 +825,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     public long getMostRecentPageTimestamp() throws RemoteException {
         long mostRecent = 0;
         for (PageInfo page : pageDatabase.values()) {
-            // Only consider pages with actual content (not placeholders)
+            // considera apenas paginas com conteudo real (nao placeholders)
             if (page.getWords() != null && !page.getWords().isEmpty() &&
                     page.getIndexedTimestamp() > mostRecent) {
                 mostRecent = page.getIndexedTimestamp();
@@ -817,18 +835,19 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     }
 
     /**
-     * Synchronizes this barrel's index with a peer barrel in the background.
+     * sincroniza o indice deste barrel com um peer barrel em background.
      * 
-     * Handles two scenarios:
-     * 1. Empty index - syncs all pages from before barrel start
-     * 2. Outdated index - syncs only pages newer than our most recent page
+     * trata dois cenarios:
+     * 1. indice vazio - sincroniza todas as paginas de antes do inicio do barrel
+     * 2. indice desatualizado - sincroniza apenas paginas mais recentes que a nossa
+     * pagina mais recente
      * 
-     * IMPORTANT: This runs in a separate thread and does NOT block the main barrel
-     * thread.
-     * - This barrel can continue accepting new pages from downloaders
-     * - The peer barrel can continue serving searches and accepting pages
-     * - RMI calls to peer are handled by separate RMI threads on the peer
-     * - Both barrels remain fully operational during sync
+     * importante: isto corre numa thread separada e NAO bloqueia a thread principal
+     * do barrel
+     * - este barrel pode continuar a aceitar novas paginas dos downloaders
+     * - o peer barrel pode continuar a servir pesquisas e aceitar paginas
+     * - chamadas RMI ao peer sao tratadas por threads RMI separadas no peer
+     * - ambos os barrels permanecem totalmente operacionais durante sync
      */
     private void synchronizeWithPeer() {
         Thread syncThread = new Thread(() -> {
@@ -837,8 +856,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 syncProgress = 0;
                 System.out.println("[" + barrelId + "] Starting background synchronization (non-blocking)...");
 
-                // SIMPLIFIED LOGIC: Find peer with largest index and sync to it
-                // Count only pages with actual content (not placeholders)
+                // logica simplificada: encontra peer com maior indice e sincroniza para ele
+                // conta apenas paginas com conteudo real (nao placeholders)
                 int ourIndexSize = 0;
                 for (PageInfo page : pageDatabase.values()) {
                     if (page.getWords() != null && !page.getWords().isEmpty()) {
@@ -847,18 +866,18 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 }
                 System.out.println("[" + barrelId + "] Our current index size: " + ourIndexSize + " pages");
 
-                // Get reference to barrel registry
+                // obtem referencia ao barrel registry
                 IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
                         .lookup("rmi://localhost:1099/BarrelRegistry");
 
-                // Get all barrels
+                // obtem todos os barrels
                 List<IBarrel> allBarrels = registry.getAllBarrels();
 
-                // Find the peer barrel with the LARGEST index
-                // Simple criteria:
-                // 1. Must not be ourselves
-                // 2. Must be ready (not syncing)
-                // 3. Must have more pages than us
+                // encontra o peer barrel com o MAIOR indice
+                // criterios simples:
+                // 1. nao deve ser nos proprios
+                // 2. deve estar pronto (nao sincronizando)
+                // 3. deve ter mais paginas que nos
                 IBarrel peerBarrel = null;
                 String peerId = null;
                 int peerIndexSize = 0;
@@ -868,13 +887,13 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 for (IBarrel barrel : allBarrels) {
                     String candidateId = barrel.getBarrelId();
 
-                    // Skip ourselves
+                    // ignora nos proprios
                     if (candidateId.equals(barrelId)) {
                         continue;
                     }
 
                     try {
-                        // Check if this barrel is ready (not syncing)
+                        // verifica se este barrel esta pronto (nao sincronizando)
                         boolean isReady = barrel.isReady();
                         if (!isReady) {
                             System.out.println("[" + barrelId + "]   - Barrel " + candidateId +
@@ -882,18 +901,18 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                             continue;
                         }
 
-                        // Get this barrel's index size
+                        // obtem o tamanho do indice deste barrel
                         int candidateIndexSize = barrel.getIndexSize();
 
                         System.out.println("[" + barrelId + "]   - Barrel " + candidateId +
                                 " is ready with " + candidateIndexSize + " pages");
 
-                        // Check if this peer has more pages than us
+                        // verifica se este peer tem mais paginas que nos
                         if (candidateIndexSize > ourIndexSize) {
                             System.out.println("[" + barrelId + "]   - Barrel " + candidateId +
                                     " has more pages (" + candidateIndexSize + " vs " + ourIndexSize + ")");
 
-                            // Select peer with largest index
+                            // seleciona peer com maior indice
                             if (candidateIndexSize > peerIndexSize) {
                                 peerBarrel = barrel;
                                 peerId = candidateId;
@@ -913,7 +932,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 }
 
                 if (peerBarrel == null) {
-                    // No peer has more pages than us - we have the largest index!
+                    // nenhum peer tem mais paginas que nos - temos o maior indice!
                     System.out
                             .println("[" + barrelId + "] No peer has more pages than us - we have the largest index!");
                     System.out.println("[" + barrelId + "] Our index: " + ourIndexSize + " pages");
@@ -924,12 +943,13 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     return;
                 }
 
-                syncPeerBarrelId = peerId; // Store peer ID for statistics
+                syncPeerBarrelId = peerId; // guarda peer ID para estatisticas
                 System.out.println("[" + barrelId + "] Selected peer barrel: " + peerId +
                         " with " + peerIndexSize + " pages (we have " + ourIndexSize + " pages)");
 
-                // Get count of pages indexed BEFORE this barrel started (timestamp-based
-                // filtering)
+                // obtem contagem de paginas indexadas ANTES deste barrel ter comecado
+                // (filtragem
+                // baseada em timestamp)
                 int peerSizeBeforeStart = peerBarrel.getIndexSizeBeforeTimestamp(barrelStartTimestamp);
                 System.out.println("[" + barrelId + "] Peer has " + peerSizeBeforeStart
                         + " pages indexed before barrel start (timestamp: " + barrelStartTimestamp + ")");
@@ -946,24 +966,24 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     return;
                 }
 
-                // Sync in chunks, only pages from BEFORE barrel start
-                // Note: Each RMI call is handled by a separate thread on the peer barrel
-                // The peer barrel continues serving other requests in parallel
+                // sincroniza em chunks, apenas paginas de ANTES do inicio do barrel
+                // nota: cada chamada RMI e tratada por uma thread separada no peer barrel
+                // o peer barrel continua a servir outros pedidos em paralelo
                 int chunkSize = 100;
                 int offset = 0;
                 int totalSynced = 0;
 
                 while (offset < peerSizeBeforeStart) {
-                    // Request only pages indexed before this barrel started
-                    // This RMI call uses one of the peer's RMI handler threads
-                    // Other threads on the peer can handle searches/indexing simultaneously
+                    // pede apenas paginas indexadas antes deste barrel ter comecado
+                    // esta chamada RMI usa uma das threads de tratamento RMI do peer
+                    // outras threads no peer podem tratar pesquisas/indexacao simultaneamente
                     List<PageInfo> chunk = peerBarrel.getPageChunkBeforeTimestamp(barrelStartTimestamp, offset,
                             chunkSize);
                     if (chunk.isEmpty()) {
                         break;
                     }
 
-                    // Import pages locally (happens on this barrel, doesn't affect peer)
+                    // importa paginas localmente (acontece neste barrel, nao afeta peer)
                     bulkImportPages(chunk);
                     totalSynced += chunk.size();
                     offset += chunk.size();
@@ -972,8 +992,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     System.out.println("[" + barrelId + "] Sync progress: " + syncProgress + "% (" + totalSynced + "/"
                             + peerSizeBeforeStart + ")");
 
-                    // Small delay to be gentle on network and peer resources
-                    Thread.sleep(50); // Reduced from 100ms for faster sync
+                    // pequeno delay para ser gentil com rede e recursos do peer
+                    Thread.sleep(50); // reduzido de 100ms para sync mais rapido
                 }
 
                 System.out.println("[" + barrelId + "] Synchronization complete! Synced " + totalSynced
@@ -991,7 +1011,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             } catch (Exception e) {
                 System.err.println("[" + barrelId + "] Synchronization failed: " + e.getMessage());
                 e.printStackTrace();
-                syncCompleted = true; // Mark as complete even if failed, to allow searches
+                syncCompleted = true; // marca como completo mesmo se falhou, para permitir pesquisas
                 isSyncing = false;
                 syncPeerBarrelId = null;
                 syncProgress = 0;
@@ -1016,13 +1036,13 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             String barrelId = args[0];
             StorageBarrel barrel = new StorageBarrel(barrelId);
 
-            // Wait for Gateway to be available before binding
+            // aguarda que Gateway esteja disponivel antes de fazer bind
             System.out.println("Waiting for Gateway to be available...");
             boolean gatewayAvailable = false;
 
             while (!gatewayAvailable) {
                 try {
-                    // Try to lookup the Gateway to check if RMI registry exists
+                    // tenta fazer lookup do Gateway para verificar se registry RMI existe
                     java.rmi.Naming.lookup("rmi://localhost:1099/Gateway");
                     gatewayAvailable = true;
                     System.out.println("Gateway detected. Proceeding with registration...");
@@ -1032,38 +1052,41 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 }
             }
 
-            // Now bind to RMI registry (Gateway is running)
+            // agora faz bind ao registry RMI (Gateway esta a correr)
             java.rmi.Naming.rebind("rmi://localhost:1099/Barrel" + barrelId, barrel);
 
             System.out.println("Storage Barrel " + barrelId + " bound to RMI registry");
 
-            // Set the start timestamp NOW - right before accepting page requests
-            // This ensures we only sync pages indexed BEFORE the barrel becomes available
+            // define o timestamp de inicio AGORA - mesmo antes de aceitar pedidos de
+            // paginas
+            // isto garante que apenas sincronizamos paginas indexadas ANTES do barrel ficar
+            // disponivel
             barrel.barrelStartTimestamp = System.currentTimeMillis();
             System.out.println(
                     "[" + barrelId + "] Barrel ready to accept pages (timestamp: " + barrel.barrelStartTimestamp + ")");
 
-            // Register with BarrelRegistry for multicast support - retry until successful
-            // and keep monitoring connection health
+            // regista no BarrelRegistry para suporte multicast - tenta ate ter sucesso
+            // e mantem monitorizacao da saude da conexao
             final boolean[] keepRunning = { true };
             Thread registrationThread = new Thread(() -> {
                 System.out.println("Starting BarrelRegistry connection manager...");
                 while (keepRunning[0]) {
                     boolean registered = false;
 
-                    // Phase 1: Initial registration (retry until successful)
+                    // fase 1: registo inicial (tenta ate ter sucesso)
                     System.out.println("Attempting to register with BarrelRegistry...");
                     while (!registered && keepRunning[0]) {
                         try {
-                            // Get fresh registry reference each time
+                            // obtem referencia fresca do registry cada vez
                             IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
                                     .lookup("rmi://localhost:1099/BarrelRegistry");
                             registry.registerBarrel(barrelId, barrel);
                             registered = true;
                             System.out.println("Storage Barrel " + barrelId + " registered with BarrelRegistry");
 
-                            // Always trigger sync check - will determine if sync is needed based on
-                            // timestamp comparison
+                            // aciona sempre verificacao de sync - vai determinar se sync e necessario
+                            // baseado em
+                            // comparacao de timestamps
                             if (!barrel.syncCompleted) {
                                 System.out
                                         .println("[" + barrelId + "] Checking if sync is needed with peer barrels...");
@@ -1084,27 +1107,27 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                         }
                     }
 
-                    // Phase 2: Health monitoring (ping registry periodically)
+                    // fase 2: monitorizacao de saude (faz ping ao registry periodicamente)
                     System.out.println("Entering health monitoring loop...");
                     while (registered && keepRunning[0]) {
                         try {
-                            Thread.sleep(5000); // Check every 5 seconds
-                            // Get fresh registry reference for each ping
+                            Thread.sleep(5000); // verifica a cada 5 segundos
+                            // obtem referencia fresca do registry para cada ping
                             IBarrelRegistry registry = (IBarrelRegistry) java.rmi.Naming
                                     .lookup("rmi://localhost:1099/BarrelRegistry");
-                            registry.getBarrelCount(); // Ping to check if still alive
-                            // If we get here, connection is still good
+                            registry.getBarrelCount(); // ping para verificar se ainda esta vivo
+                            // se chegamos aqui, conexao ainda esta boa
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
                             System.out.println("Health monitoring interrupted, exiting...");
                             return;
                         } catch (Exception e) {
-                            // Gateway down - connection lost
+                            // gateway down - conexao perdida
                             System.err.println("Lost connection to BarrelRegistry! Gateway may have shutdown.");
                             System.err.println("Error: " + e.getMessage());
                             System.err.println("Will attempt to re-register...");
                             registered = false;
-                            break; // Exit health monitoring, go back to registration phase
+                            break; // sai da monitorizacao de saude, volta para fase de registo
                         }
                     }
                     System.out.println("Exited health monitoring loop. registered=" + registered + ", keepRunning="
@@ -1116,27 +1139,27 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
             System.out.println("Storage Barrel " + barrelId + " ready");
 
-            // Add shutdown hook to unregister from registry
+            // adiciona shutdown hook para remover registo do registry
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 try {
-                    // Flush output streams to avoid Maven/Jansi issues
+                    // faz flush aos streams de output para evitar problemas Maven/Jansi
                     System.out.flush();
                     System.err.flush();
 
                     System.out.println("\n\nShutting down Barrel " + barrelId + "...");
 
-                    // FIRST: Stop accepting new indexing requests
+                    // PRIMEIRO: para de aceitar novos pedidos de indexacao
                     barrel.shuttingDown = true;
-                    keepRunning[0] = false; // Stop registration thread
+                    keepRunning[0] = false; // para thread de registo
 
-                    // Give a moment for in-flight requests to complete
+                    // da um momento para pedidos em curso completarem
                     try {
                         Thread.sleep(500);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
 
-                    // THEN: Save index to disk with timeout
+                    // DEPOIS: grava indice para disco com timeout
                     Thread saveThread = new Thread(() -> {
                         try {
                             barrel.saveIndexToDisk();
@@ -1148,7 +1171,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     saveThread.start();
 
                     try {
-                        // Wait up to 10 seconds for save to complete
+                        // aguarda ate 10 segundos para gravacao completar
                         saveThread.join(10000);
 
                         if (saveThread.isAlive()) {
@@ -1166,37 +1189,37 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                         registry.unregisterBarrel(barrelId);
                         System.out.println("Unregistered from BarrelRegistry");
                     } catch (Exception e) {
-                        // Ignore errors during shutdown
+                        // ignora erros durante shutdown
                     }
 
                     try {
-                        // Unbind from RMI registry
+                        // remove bind do registry RMI
                         java.rmi.Naming.unbind("rmi://localhost:1099/Barrel" + barrelId);
                         System.out.println("Unbound from RMI registry");
                     } catch (Exception e) {
-                        // Ignore errors during shutdown
+                        // ignora erros durante shutdown
                     }
 
                     try {
-                        // Unexport the barrel
+                        // faz unexport do barrel
                         UnicastRemoteObject.unexportObject(barrel, true);
                         System.out.println("Barrel unexported");
                     } catch (Exception e) {
-                        // Ignore errors during shutdown
+                        // ignora erros durante shutdown
                     }
 
                     System.out.println("Barrel " + barrelId + " shutdown complete. Goodbye!");
                     System.out.flush();
                 } catch (Exception e) {
-                    // Suppress output errors during shutdown (Maven/Jansi issues)
+                    // suprime erros de output durante shutdown (problemas Maven/Jansi)
                 }
             }));
 
-            // Mantém o servidor ativo
+            // mantem o servidor ativo
             System.out.println("Press Ctrl+C to stop...");
             Object lock = new Object();
             synchronized (lock) {
-                lock.wait(); // Espera indefinidamente
+                lock.wait(); // espera indefinidamente
             }
 
         } catch (Exception e) {

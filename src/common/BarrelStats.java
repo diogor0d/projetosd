@@ -12,9 +12,10 @@ public class BarrelStats implements Serializable {
     private int indexSize;
     private double avgResponseTime; // Em milissegundos
     private boolean active;
-    private boolean syncing; // Is this barrel currently syncing?
-    private String syncingFromPeer; // Which peer is providing sync data (null if not syncing)
-    private int syncProgress; // Sync progress percentage (0-100)
+    private boolean syncing; // guarda o estado de sincronizacao do barril
+    private String syncingFromPeer; // Qual peer está a fornecer dados de sincronização (null se não estiver a
+                                    // sincronizar)
+    private int syncProgress; // Percentagem de progresso da sincronização (0-100)
 
     public BarrelStats(String barrelId, int indexSize, double avgResponseTime) {
         this.barrelId = barrelId;

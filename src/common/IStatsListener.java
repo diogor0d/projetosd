@@ -4,12 +4,11 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 
 /**
- * Remote listener interface for receiving pushed SystemStats updates from the
- * Gateway.
+ * listener remoto para receber atualizações de SystemStats do Gateway.
  */
 public interface IStatsListener extends Remote {
     /**
-     * Called by the Gateway to push an updated snapshot of SystemStats.
+     * Chamado pelo Gateway para enviar um snapshot atualizado de SystemStats.
      */
     void updateStats(SystemStats stats) throws RemoteException;
 }
