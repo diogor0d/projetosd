@@ -126,7 +126,10 @@
         </div>
 
         <!-- mensagem quando não há resultados -->
-        <div th:if="${!hasResults && query != null}" class="no-results">
+        <div
+          th:if="${!(hasResults ?: false) && query != null}"
+          class="no-results"
+        >
           <h2>
             Nenhum resultado encontrado para "<span th:text="${query}"
               >pesquisa</span

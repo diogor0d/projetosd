@@ -84,6 +84,7 @@ public class SearchController {
 
         } catch (Exception e) {
             model.addAttribute("error", "Erro ao realizar pesquisa: " + e.getMessage());
+            model.addAttribute("hasResults", false);
             System.err.println("[SearchController] Erro na pesquisa: " + e.getMessage());
         }
 
