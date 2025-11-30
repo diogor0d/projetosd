@@ -19,10 +19,45 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>21</maven.compiler.release>
         <jsoup.version>1.17.2</jsoup.version>
+        <spring.boot.version>3.2.0</spring.boot.version>
     </properties>
+    
+    <!-- parent do Spring Boot para gestão de dependências -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.0</version>
+        <relativePath/>
+    </parent>
 
     <!-- Dependências -->
     <dependencies>
+        <!-- Spring Boot Starter Web (inclui Spring MVC, Tomcat, Jackson) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        
+        <!-- Spring Boot Starter Thymeleaf (template engine) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+        
+        <!-- Spring Boot Starter WebSocket (para comunicação em tempo real) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+        
+        <!-- Spring Boot DevTools (para hot reload durante desenvolvimento) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        
         <!-- jsoup para parsing HTML -->
         <dependency>
             <groupId>org.jsoup</groupId>
@@ -136,7 +171,21 @@
                             <mainClass>client.GoogolClient</mainClass>
                         </configuration>
                     </execution>
+                    
+                    <!-- Configuração para Web Application -->
+                    <execution>
+                        <id>webapp</id>
+                        <configuration>
+                            <mainClass>frontend.WebApplication</mainClass>
+                        </configuration>
+                    </execution>
                 </executions>
+            </plugin>
+            
+            <!-- Spring Boot Maven Plugin -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>

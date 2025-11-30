@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title th:text="${query} + ' - Resultados de Pesquisa | Googol'">
+      Resultados | Googol
+    </title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- cabeçalho com pesquisa -->
+      <header>
+        <nav class="search-nav">
+          <a th:href="@{/}" class="logo">Googol</a>
+          <div class="search-box-header">
+            <form th:action="@{/search}" method="get">
+              <input type="text" name="q" th:value="${query}" required />
+              <button type="submit">🔍</button>
+            </form>
+          </div>
+          <div class="nav-links">
+            <a th:href="@{/stats}">Estatísticas</a>
+          </div>
+        </nav>
+      </header>
+
+      <main>
+        <!-- mensagens de erro -->
+        <div
+          th:if="${error}"
+          class="alert alert-error"
+          th:text="${error}"
+        ></div>
+        <div
+          th:if="${success}"
+          class="alert alert-success"
+          th:text="${success}"
+        ></div>
+
+        <!-- barra de opções -->
+        <div class="search-options">
+          <div class="results-info">
+            <span th:if="${hasResults}">
+              Resultados para: <strong th:text="${query}">pesquisa</strong>
+            </span>
+          </div>
+
+          <div class="action-buttons">
+            <!-- botão para análise IA -->
+            <form th:action="@{/search}" method="get" style="display: inline">
+              <input type="hidden" name="q" th:value="${query}" />
+              <input type="hidden" name="page" th:value="${page}" />
+              <input type="hidden" name="aiAnalysis" value="true" />
+              <button type="submit" class="btn-secondary">🤖 Análise IA</button>
+            </form>
+
+            <!-- botão para indexar do Hacker News -->
+            <button onclick="toggleHNIndex()" class="btn-secondary">
+              📰 Indexar do HN
+            </button>
+          </div>
+        </div>
+
+        <!-- formulário para indexar do Hacker News (oculto por padrão) -->
+        <div id="hn-index-form" style="display: none" class="hn-index">
+          <form th:action="@{/index-hackernews}" method="post">
+            <input type="hidden" name="query" th:value="${query}" />
+            <label>Número de URLs a indexar:</label>
+            <input type="number" name="maxUrls" value="10" min="1" max="50" />
+            <button type="submit">Indexar Top Stories do HN</button>
+          </form>
+        </div>
+
+        <!-- análise IA (se disponível) -->
+        <div th:if="${aiAnalysis}" class="ai-analysis">
+          <h3>🤖 Análise Contextual</h3>
+          <div class="analysis-content" th:text="${aiAnalysis}"></div>
+        </div>
+
+        <!-- stories do Hacker News -->
+        <div
+          th:if="${hackerNewsStories != null && !hackerNewsStories.isEmpty()}"
+          class="hn-stories"
+        >
+          <h3>📰 Relacionado no Hacker News</h3>
+          <div class="hn-list">
+            <div th:each="story : ${hackerNewsStories}" class="hn-story">
+              <a th:href="${story.url}" target="_blank" th:text="${story.title}"
+                >Story Title</a
+              >
+              <span class="hn-meta">
+                <span th:text="${story.score} + ' pontos'">0 pontos</span> ·
+                <span th:text="'por ' + ${story.by}">por user</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- resultados da pesquisa -->
+        <div th:if="${hasResults}" class="search-results">
+          <div th:each="result : ${results}" class="result-item">
+            <h3 class="result-title">
+              <a
+                th:href="${result.url}"
+                target="_blank"
+                th:text="${result.title}"
+                >Page Title</a
+              >
+            </h3>
+            <p class="result-url" th:text="${result.url}">
+              https://example.com
+            </p>
+            <p class="result-citation" th:text="${result.snippet}">
+              Page snippet...
+            </p>
+
+            <!-- links para funcionalidades adicionais -->
+            <div class="result-actions">
+              <a th:href="@{/links-to(url=${result.url})}" class="action-link">
+                🔗 ver páginas que apontam para este URL
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- mensagem quando não há resultados -->
+        <div th:if="${!hasResults && query != null}" class="no-results">
+          <h2>
+            Nenhum resultado encontrado para "<span th:text="${query}"
+              >pesquisa</span
+            >"
+          </h2>
+          <p>Sugestões:</p>
+          <ul>
+            <li>Verifica a ortografia dos termos de pesquisa</li>
+            <li>Tenta palavras-chave diferentes</li>
+            <li>Usa termos de pesquisa mais gerais</li>
+            <li>Indexa novos URLs relacionados com a pesquisa</li>
+          </ul>
+        </div>
+
+        <!-- paginação -->
+        <div th:if="${hasResults}" class="pagination">
+          <a
+            th:if="${page > 1}"
+            th:href="@{/search(q=${query}, page=${page - 1})}"
+            class="page-link"
+            >← Anterior</a
+          >
+          <span class="page-current"
+            >Página <span th:text="${page}">1</span></span
+          >
+          <a
+            th:href="@{/search(q=${query}, page=${page + 1})}"
+            class="page-link"
+            >Seguinte →</a
+          >
+        </div>
+      </main>
+
+      <footer>
+        <p>&copy; 2025 Googol - Projeto SD</p>
+      </footer>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+      function toggleHNIndex() {
+        const form = document.getElementById("hn-index-form");
+        form.style.display = form.style.display === "none" ? "block" : "none";
+      }
+    </script>
+  </body>
+</html>

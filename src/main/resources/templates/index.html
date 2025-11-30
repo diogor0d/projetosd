@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Googol - Motor de Pesquisa</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- cabeçalho com navegação -->
+      <header>
+        <nav>
+          <a th:href="@{/}" class="logo">Googol</a>
+          <div class="nav-links">
+            <a th:href="@{/}">Início</a>
+            <a th:href="@{/stats}">Estatísticas</a>
+          </div>
+        </nav>
+      </header>
+
+      <main class="home-main">
+        <!-- logo principal -->
+        <div class="home-logo">
+          <h1>Googol</h1>
+          <p class="tagline">motor de pesquisa distribuído</p>
+        </div>
+
+        <!-- formulário de pesquisa -->
+        <div class="search-box">
+          <form th:action="@{/search}" method="get">
+            <input
+              type="text"
+              name="q"
+              placeholder="Pesquisar..."
+              required
+              autofocus
+            />
+            <button type="submit">🔍 Pesquisar</button>
+          </form>
+        </div>
+
+        <!-- mensagens de feedback -->
+        <div
+          th:if="${success}"
+          class="alert alert-success"
+          th:text="${success}"
+        ></div>
+        <div
+          th:if="${error}"
+          class="alert alert-error"
+          th:text="${error}"
+        ></div>
+
+        <!-- formulário para indexar URL -->
+        <div class="index-url">
+          <h2>Indexar novo URL</h2>
+          <form th:action="@{/index}" method="post">
+            <input
+              type="text"
+              name="url"
+              placeholder="https://example.com"
+              required
+            />
+            <button type="submit">➕ Indexar</button>
+          </form>
+        </div>
+
+        <!-- estatísticas resumidas -->
+        <div th:if="${stats}" class="stats-summary">
+          <h3>Estado do Sistema</h3>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-value" th:text="${stats.totalIndexedPages}"
+                >0</span
+              >
+              <span class="stat-label">páginas indexadas</span>
+            </div>
+            <div class="stat-card">
+              <span
+                class="stat-value"
+                th:text="${#lists.size(stats.barrelStats)}"
+                >0</span
+              >
+              <span class="stat-label">barrels ativos</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value" th:text="${stats.urlQueueSize}">0</span>
+              <span class="stat-label">URLs na fila</span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer>
+        <p>&copy; 2025 Googol - Projeto SD</p>
+      </footer>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+  </body>
+</html>

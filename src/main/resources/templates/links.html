@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Páginas que apontam para este URL | Googol</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- cabeçalho -->
+      <header>
+        <nav>
+          <a th:href="@{/}" class="logo">Googol</a>
+          <div class="nav-links">
+            <a th:href="@{/}">Início</a>
+            <a th:href="@{/stats}">Estatísticas</a>
+          </div>
+        </nav>
+      </header>
+
+      <main>
+        <h1>🔗 Páginas que apontam para este URL</h1>
+
+        <!-- URL de destino -->
+        <div class="target-url">
+          <p><strong>URL:</strong></p>
+          <code th:text="${targetUrl}">https://example.com</code>
+        </div>
+
+        <!-- mensagem de erro -->
+        <div
+          th:if="${error}"
+          class="alert alert-error"
+          th:text="${error}"
+        ></div>
+
+        <!-- lista de links -->
+        <div th:if="${hasLinks}" class="links-list">
+          <h2>
+            Encontradas
+            <span th:text="${#lists.size(links)}">0</span> referências
+          </h2>
+          <ul>
+            <li th:each="link : ${links}">
+              <a th:href="${link}" target="_blank" th:text="${link}">URL</a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- mensagem quando não há links -->
+        <div th:if="${!hasLinks && targetUrl != null}" class="no-results">
+          <h2>Nenhuma página aponta para este URL</h2>
+          <p>Isto pode significar que:</p>
+          <ul>
+            <li>O URL ainda não foi indexado</li>
+            <li>Nenhuma página indexada contém links para este URL</li>
+            <li>
+              O crawler ainda não descobriu páginas que referenciem este URL
+            </li>
+          </ul>
+        </div>
+
+        <!-- botão voltar -->
+        <div class="action-buttons">
+          <button onclick="window.history.back()" class="btn-secondary">
+            ← Voltar
+          </button>
+        </div>
+      </main>
+
+      <footer>
+        <p>&copy; 2025 Googol - Projeto SD</p>
+      </footer>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+  </body>
+</html>

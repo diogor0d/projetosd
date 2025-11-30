@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Estatísticas do Sistema | Googol</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- cabeçalho -->
+      <header>
+        <nav>
+          <a th:href="@{/}" class="logo">Googol</a>
+          <div class="nav-links">
+            <a th:href="@{/}">Início</a>
+            <a th:href="@{/stats}" class="active">Estatísticas</a>
+          </div>
+        </nav>
+      </header>
+
+      <main>
+        <h1>📊 Estatísticas do Sistema</h1>
+
+        <div class="stats-indicator">
+          <span id="live-indicator" class="live-dot"></span>
+          <span>atualizações em tempo real</span>
+        </div>
+
+        <!-- mensagem de erro -->
+        <div
+          th:if="${error}"
+          class="alert alert-error"
+          th:text="${error}"
+        ></div>
+
+        <!-- estatísticas gerais -->
+        <div th:if="${stats}" id="stats-container">
+          <section class="stats-section">
+            <h2>Visão Geral</h2>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <span
+                  class="stat-value"
+                  id="total-pages"
+                  th:text="${stats.totalIndexedPages}"
+                  >0</span
+                >
+                <span class="stat-label">páginas indexadas</span>
+              </div>
+              <div class="stat-card">
+                <span
+                  class="stat-value"
+                  id="queue-size"
+                  th:text="${stats.urlQueueSize}"
+                  >0</span
+                >
+                <span class="stat-label">URLs na fila</span>
+              </div>
+              <div class="stat-card">
+                <span
+                  class="stat-value"
+                  id="barrel-count"
+                  th:text="${#lists.size(stats.barrelStats)}"
+                  >0</span
+                >
+                <span class="stat-label">barrels ativos</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- pesquisas mais comuns -->
+          <section class="stats-section">
+            <h2>🔥 Top 10 Pesquisas</h2>
+            <div id="top-searches">
+              <ol
+                th:if="${stats.topSearches != null && !stats.topSearches.isEmpty()}"
+              >
+                <li th:each="search : ${stats.topSearches}" th:text="${search}">
+                  search term
+                </li>
+              </ol>
+              <p
+                th:if="${stats.topSearches == null || stats.topSearches.isEmpty()}"
+                class="no-data"
+              >
+                Ainda não há pesquisas registadas
+              </p>
+            </div>
+          </section>
+
+          <!-- informação dos barrels -->
+          <section class="stats-section">
+            <h2>🗄️ Storage Barrels</h2>
+            <div id="barrel-stats">
+              <div
+                th:if="${stats.barrelStats != null && !stats.barrelStats.isEmpty()}"
+              >
+                <div
+                  th:each="barrel : ${stats.barrelStats}"
+                  class="barrel-card"
+                >
+                  <h3 th:text="${barrel.barrelId}">Barrel ID</h3>
+                  <div class="barrel-info">
+                    <p>
+                      <strong>Páginas indexadas:</strong>
+                      <span th:text="${barrel.indexSize}">0</span>
+                    </p>
+                    <p>
+                      <strong>Tempo médio de resposta:</strong>
+                      <span
+                        th:text="${#numbers.formatDecimal(barrel.avgResponseTime, 1, 1)} + ' ms'"
+                        >0.0 ms</span
+                      >
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p
+                th:if="${stats.barrelStats == null || stats.barrelStats.isEmpty()}"
+                class="no-data"
+              >
+                Nenhum barrel ativo
+              </p>
+            </div>
+          </section>
+
+          <!-- informação da fila -->
+          <section th:if="${queueStatus}" class="stats-section">
+            <h2>📋 Estado da Fila de URLs</h2>
+            <pre class="queue-status" th:text="${queueStatus}">
+Queue status</pre
+            >
+          </section>
+        </div>
+      </main>
+
+      <footer>
+        <p>&copy; 2025 Googol - Projeto SD</p>
+      </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script th:src="@{/js/app.js}"></script>
+    <script th:src="@{/js/stats-websocket.js}"></script>
+  </body>
+</html>

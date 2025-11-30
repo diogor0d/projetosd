@@ -55,3 +55,19 @@ Thumbs.db
 # RMI stub files
 *_Stub.class
 projetosd.code-workspace
+
+# API keys e credenciais
+key.openai.txt
+key.*.txt
+*.key
+*.secret
+
+# Spring Boot
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Spring DevTools
+spring-boot-devtools.properties
