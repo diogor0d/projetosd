@@ -73,4 +73,31 @@ public class SystemStats implements Serializable {
 
         return sb.toString();
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null || getClass() != obj.getClass())
+            return false;
+
+        SystemStats that = (SystemStats) obj;
+
+        if (totalIndexedPages != that.totalIndexedPages)
+            return false;
+        if (urlQueueSize != that.urlQueueSize)
+            return false;
+        if (!topSearches.equals(that.topSearches))
+            return false;
+        return barrelStats.equals(that.barrelStats);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = topSearches.hashCode();
+        result = 31 * result + barrelStats.hashCode();
+        result = 31 * result + totalIndexedPages;
+        result = 31 * result + urlQueueSize;
+        return result;
+    }
 }

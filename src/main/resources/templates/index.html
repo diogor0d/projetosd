@@ -12,9 +12,29 @@
       <header>
         <nav>
           <a th:href="@{/}" class="logo">Googol</a>
-          <div class="nav-links">
-            <a th:href="@{/}">Início</a>
-            <a th:href="@{/stats}">Estatísticas</a>
+          <div class="header-right">
+            <!-- barra de estatísticas ao vivo -->
+            <div class="stats-bar">
+              <div class="stats-bar-item">
+                <span class="stats-bar-label">📄</span>
+                <span class="stats-bar-value" id="global-total-pages">-</span>
+              </div>
+              <div class="stats-bar-item">
+                <span class="stats-bar-label">📊</span>
+                <span class="stats-bar-value" id="global-queue-size">-</span>
+              </div>
+              <div class="stats-bar-item">
+                <span class="stats-bar-label">🗄️</span>
+                <span class="stats-bar-value" id="global-barrel-count">-</span>
+              </div>
+              <div class="stats-bar-indicator">
+                <span id="global-live-indicator" class="live-dot"></span>
+              </div>
+            </div>
+            <div class="nav-links">
+              <a th:href="@{/}">Início</a>
+              <a th:href="@{/stats}">Painel Sistema</a>
+            </div>
           </div>
         </nav>
       </header>
@@ -28,15 +48,28 @@
 
         <!-- formulário de pesquisa -->
         <div class="search-box">
-          <form th:action="@{/search}" method="get">
-            <input
-              type="text"
-              name="q"
-              placeholder="Pesquisar..."
-              required
-              autofocus
-            />
-            <button type="submit">🔍 Pesquisar</button>
+          <form id="search-form" th:action="@{/search}" method="get">
+            <div class="search-input-wrapper">
+              <input
+                type="text"
+                id="query-input"
+                name="q"
+                placeholder="Pesquisar..."
+                required
+                autofocus
+              />
+              <button type="submit" id="submit-btn" class="search-icon-btn">
+                🔍
+              </button>
+            </div>
+            <div class="search-mode-switch">
+              <span class="switch-label">Pesquisar</span>
+              <label class="switch">
+                <input type="checkbox" id="index-mode" />
+                <span class="slider"></span>
+              </label>
+              <span class="switch-label">Indexar URL</span>
+            </div>
           </form>
         </div>
 
@@ -51,45 +84,6 @@
           class="alert alert-error"
           th:text="${error}"
         ></div>
-
-        <!-- formulário para indexar URL -->
-        <div class="index-url">
-          <h2>Indexar novo URL</h2>
-          <form th:action="@{/index}" method="post">
-            <input
-              type="text"
-              name="url"
-              placeholder="https://example.com"
-              required
-            />
-            <button type="submit">➕ Indexar</button>
-          </form>
-        </div>
-
-        <!-- estatísticas resumidas -->
-        <div th:if="${stats}" class="stats-summary">
-          <h3>Estado do Sistema</h3>
-          <div class="stats-grid">
-            <div class="stat-card">
-              <span class="stat-value" th:text="${stats.totalIndexedPages}"
-                >0</span
-              >
-              <span class="stat-label">páginas indexadas</span>
-            </div>
-            <div class="stat-card">
-              <span
-                class="stat-value"
-                th:text="${#lists.size(stats.barrelStats)}"
-                >0</span
-              >
-              <span class="stat-label">barrels ativos</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-value" th:text="${stats.urlQueueSize}">0</span>
-              <span class="stat-label">URLs na fila</span>
-            </div>
-          </div>
-        </div>
       </main>
 
       <footer>
@@ -97,6 +91,31 @@
       </footer>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
     <script th:src="@{/js/app.js}"></script>
+    <script th:src="@{/js/global-stats.js}"></script>
+    <script>
+      // Toggle between search and index mode
+      const form = document.getElementById("search-form");
+      const queryInput = document.getElementById("query-input");
+      const indexModeCheckbox = document.getElementById("index-mode");
+
+      indexModeCheckbox.addEventListener("change", function () {
+        if (this.checked) {
+          // Index mode
+          form.action = "/index";
+          form.method = "post";
+          queryInput.name = "url";
+          queryInput.placeholder = "https://example.com";
+        } else {
+          // Search mode
+          form.action = "/search";
+          form.method = "get";
+          queryInput.name = "q";
+          queryInput.placeholder = "Pesquisar...";
+        }
+      });
+    </script>
   </body>
 </html>

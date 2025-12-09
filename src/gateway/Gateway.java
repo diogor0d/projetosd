@@ -387,7 +387,7 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
         // de resposta
         // do Gateway
         List<BarrelStats> barrelStatsList = new ArrayList<>();
-        int totalPages = 0;
+        int maxPages = 0; // usa maximo pois barrels sao replicas
 
         try {
             List<IBarrel> activeBarrels = barrelRegistry.getAllBarrels();
@@ -409,7 +409,7 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
                     }
 
                     barrelStatsList.add(bs);
-                    totalPages += bs.getIndexSize(); // soma todas as paginas entre barrels
+                    maxPages = Math.max(maxPages, bs.getIndexSize()); // maximo, nao soma
                 } catch (Exception e) {
                     System.err.println("Failed to get stats from barrel: " + e.getMessage());
                 }
@@ -419,7 +419,7 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
         }
 
         stats.setBarrelStats(barrelStatsList);
-        stats.setTotalIndexedPages(totalPages);
+        stats.setTotalIndexedPages(maxPages);
         // adiciona tamanho da queue de URLs
         try {
             stats.setUrlQueueSize(urlQueue.size());

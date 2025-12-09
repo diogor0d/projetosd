@@ -89,4 +89,43 @@ public class BarrelStats implements Serializable {
 
         return sb.toString();
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null || getClass() != obj.getClass())
+            return false;
+
+        BarrelStats that = (BarrelStats) obj;
+
+        if (indexSize != that.indexSize)
+            return false;
+        if (Double.compare(that.avgResponseTime, avgResponseTime) != 0)
+            return false;
+        if (active != that.active)
+            return false;
+        if (syncing != that.syncing)
+            return false;
+        if (syncProgress != that.syncProgress)
+            return false;
+        if (!barrelId.equals(that.barrelId))
+            return false;
+        return syncingFromPeer != null ? syncingFromPeer.equals(that.syncingFromPeer) : that.syncingFromPeer == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result;
+        long temp;
+        result = barrelId.hashCode();
+        result = 31 * result + indexSize;
+        temp = Double.doubleToLongBits(avgResponseTime);
+        result = 31 * result + (int) (temp ^ (temp >>> 32));
+        result = 31 * result + (active ? 1 : 0);
+        result = 31 * result + (syncing ? 1 : 0);
+        result = 31 * result + (syncingFromPeer != null ? syncingFromPeer.hashCode() : 0);
+        result = 31 * result + syncProgress;
+        return result;
+    }
 }

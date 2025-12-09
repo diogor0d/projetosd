@@ -4,7 +4,6 @@ import common.IStatsListener;
 import common.SystemStats;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
@@ -37,14 +36,29 @@ public class StatsUpdateService extends UnicastRemoteObject implements IStatsLis
     @PostConstruct
     public void init() {
         try {
+            System.out.println("[StatsUpdateService] Iniciando conexão com Gateway...");
             gatewayService.connect();
-            gatewayService.registerStatsListener(this);
-            System.out.println("[StatsUpdateService] Registado como listener de estatísticas");
+            System.out.println("[StatsUpdateService] Conexão com Gateway estabelecida");
 
-            // força primeira atualização
-            pollStats();
+            System.out.println("[StatsUpdateService] Registando como listener de estatísticas...");
+            gatewayService.registerStatsListener(this);
+            System.out.println("[StatsUpdateService] ✅ Registado como listener de estatísticas");
+
+            // obtém estatísticas iniciais
+            try {
+                System.out.println("[StatsUpdateService] Obtendo estatísticas iniciais...");
+                SystemStats stats = gatewayService.getSystemStats();
+                if (stats != null) {
+                    System.out.println("[StatsUpdateService] Estatísticas iniciais recebidas, atualizando...");
+                    updateStats(stats);
+                }
+            } catch (Exception e) {
+                System.err.println("[StatsUpdateService] Erro ao obter estatísticas iniciais: " + e.getMessage());
+                e.printStackTrace();
+            }
         } catch (Exception e) {
-            System.err.println("[StatsUpdateService] Erro ao registar listener: " + e.getMessage());
+            System.err.println("[StatsUpdateService] ❌ Erro ao registar listener: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -69,26 +83,16 @@ public class StatsUpdateService extends UnicastRemoteObject implements IStatsLis
     public void updateStats(SystemStats stats) throws RemoteException {
         this.lastStats = stats;
 
+        // System.out.println("[StatsUpdateService] Recebidas novas estatísticas:");
+        // System.out.println(" - Total páginas: " + stats.getTotalIndexedPages());
+        // System.out.println(" - URLs na fila: " + stats.getUrlQueueSize());
+        // System.out.println(" - Barrels ativos: " + stats.getBarrelStats().size());
+
         // envia para todos os clientes subscritos ao tópico /topic/stats
         messagingTemplate.convertAndSend("/topic/stats", stats);
 
-        System.out.println("[StatsUpdateService] Estatísticas atualizadas e enviadas aos clientes");
-    }
-
-    /**
-     * polling periódico como fallback caso o push não funcione
-     * executa a cada 5 segundos
-     */
-    @Scheduled(fixedRate = 5000)
-    public void pollStats() {
-        try {
-            SystemStats stats = gatewayService.getSystemStats();
-            if (stats != null && !stats.equals(lastStats)) {
-                updateStats(stats);
-            }
-        } catch (Exception e) {
-            // ignora erros de polling silenciosamente
-        }
+        // System.out.println("[StatsUpdateService] Estatísticas enviadas para clientes
+        // WebSocket");
     }
 
     /**

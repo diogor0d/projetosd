@@ -7,28 +7,36 @@
     
     // conecta ao WebSocket
     function connect() {
+        console.log('[Stats WebSocket] Tentando conectar...');
         const socket = new SockJS('/ws-stats');
         stompClient = Stomp.over(socket);
         
-        // desabilita debug logs do stomp
-        stompClient.debug = null;
+        // habilita debug logs do stomp temporariamente
+        stompClient.debug = function(str) {
+            console.log('[STOMP Debug]', str);
+        };
         
         stompClient.connect({}, function(frame) {
-            console.log('WebSocket conectado:', frame);
+            console.log('[Stats WebSocket] ✅ Conectado com sucesso!', frame);
             connected = true;
             updateConnectionIndicator(true);
             
             // subscreve ao tópico de estatísticas
             stompClient.subscribe('/topic/stats', function(message) {
+                console.log('[Stats WebSocket] 📊 Mensagem recebida:', message.body);
                 const stats = JSON.parse(message.body);
+                console.log('[Stats WebSocket] 📊 Estatísticas parseadas:', stats);
                 updateStatsUI(stats);
             });
+            
+            console.log('[Stats WebSocket] 📡 Subscrito ao tópico /topic/stats');
         }, function(error) {
-            console.error('Erro na conexão WebSocket:', error);
+            console.error('[Stats WebSocket] ❌ Erro na conexão:', error);
             connected = false;
             updateConnectionIndicator(false);
             
             // tenta reconectar após 5 segundos
+            console.log('[Stats WebSocket] 🔄 Tentando reconectar em 5 segundos...');
             setTimeout(connect, 5000);
         });
     }
@@ -49,21 +57,25 @@
     
     // atualiza a UI com as novas estatísticas
     function updateStatsUI(stats) {
-        console.log('Estatísticas atualizadas:', stats);
+        console.log('[Stats UI] 🔄 Atualizando interface com:', stats);
         
         // atualiza valores principais
         updateElement('total-pages', stats.totalIndexedPages);
         updateElement('queue-size', stats.urlQueueSize);
         updateElement('barrel-count', stats.barrelStats ? stats.barrelStats.length : 0);
         
+        console.log('[Stats UI] ✅ Valores principais atualizados');
+        
         // atualiza top searches
         if (stats.topSearches && stats.topSearches.length > 0) {
             updateTopSearches(stats.topSearches);
+            console.log('[Stats UI] ✅ Top searches atualizadas');
         }
         
         // atualiza informação dos barrels
         if (stats.barrelStats && stats.barrelStats.length > 0) {
             updateBarrelStats(stats.barrelStats);
+            console.log('[Stats UI] ✅ Barrel stats atualizadas');
         }
     }
     
@@ -148,9 +160,14 @@
     
     // conecta automaticamente quando a página carrega
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('[Stats WebSocket] 🚀 DOM carregado');
         // verifica se estamos na página de estatísticas
-        if (document.getElementById('stats-container')) {
+        const statsContainer = document.getElementById('stats-container');
+        if (statsContainer) {
+            console.log('[Stats WebSocket] 📊 Página de estatísticas detectada, iniciando conexão...');
             connect();
+        } else {
+            console.log('[Stats WebSocket] ⏭️  Não é a página de estatísticas, WebSocket não será iniciado');
         }
     });
     
