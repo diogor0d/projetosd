@@ -24,40 +24,7 @@
             <input type="hidden" name="aiAnalysis" value="true" />
             <button type="submit" class="btn-secondary">🤖 AI Analysis</button>
           </form>
-
-          <button
-            onclick="toggleElement('hn-index-form')"
-            class="btn-secondary"
-          >
-            📰 Index HackerNews
-          </button>
         </div>
-      </div>
-
-      <div id="hn-index-form" style="display: none" class="hn-index">
-        <form
-          th:action="@{/index-hackernews}"
-          method="post"
-          style="display: flex; gap: 1rem; align-items: center"
-        >
-          <input type="hidden" name="query" th:value="${query}" />
-          <label>Fetch top stories:</label>
-          <input
-            type="number"
-            name="maxUrls"
-            value="10"
-            min="1"
-            max="50"
-            style="width: 80px"
-          />
-          <button
-            type="submit"
-            class="btn-secondary"
-            style="background: var(--bg-hover)"
-          >
-            Go
-          </button>
-        </form>
       </div>
 
       <div

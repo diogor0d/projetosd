@@ -77,6 +77,11 @@ nav {
 
 .nav-links a:hover, .nav-links a.active { color: var(--accent); }
 
+/* --- Stats Page Nav (Centered Logo) --- */
+nav.stats-nav {
+    justify-content: center;
+}
+
 /* --- Home Page Stats Bar (Centered at Top) --- */
 .home-stats-bar {
     display: flex;
@@ -130,7 +135,8 @@ nav {
     display: inline-block;
 }
 
-.stats-bar-link:hover .stats-bar {
+/* Dynamic Island animation - only on home page */
+.home-stats-link:hover .stats-bar {
     max-height: 100px;
     padding: 0.6rem 1.2rem;
     border-radius: 24px;
@@ -138,9 +144,15 @@ nav {
     background: var(--bg-hover);
 }
 
-.stats-bar-link:hover .stats-bar-expanded {
+.home-stats-link:hover .stats-bar-expanded {
     opacity: 1;
     border-top-color: var(--border);
+}
+
+/* Subtle hover effect for navbar stats */
+.header-right .stats-bar-link:hover .stats-bar {
+    border-color: var(--accent);
+    background: var(--bg-hover);
 }
 
 .stats-bar-item { display: flex; align-items: center; gap: 0.5rem; }
@@ -234,6 +246,121 @@ input:focus {
 }
 input:checked + .slider { border-color: var(--accent); }
 input:checked + .slider:before { transform: translateX(22px); background-color: var(--accent); }
+
+/* --- HackerNews Dynamic Island --- */
+.hn-island-container {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: center;
+}
+
+.hn-island {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: var(--bg-app);
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    font-size: 0.85rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 38px;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.hn-island-compact {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.hn-icon {
+    font-size: 1rem;
+}
+
+.hn-text {
+    color: var(--text-primary);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.hn-island-expanded {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+    margin-top: 0.5rem;
+    border-top: 1px solid transparent;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hn-island:hover {
+    max-height: 180px;
+    padding: 0.6rem 1.2rem;
+    border-radius: 24px;
+    border-color: var(--accent);
+    background: var(--bg-hover);
+}
+
+.hn-island:hover .hn-island-expanded {
+    opacity: 1;
+    border-top-color: var(--border);
+}
+
+.hn-island-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.hn-island-input-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.hn-island-input-group label {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.hn-island-input {
+    width: 60px;
+    padding: 0.4rem 0.5rem;
+    background: var(--bg-app);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.hn-island-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.hn-island-btn {
+    width: 100%;
+    padding: 0.5rem;
+    background: var(--accent);
+    color: var(--bg-app);
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.hn-island-btn:hover {
+    opacity: 0.9;
+}
 
 /* --- Cards (Results, Stats) --- */
 .card, .stat-card, .barrel-card, .hn-index, .ai-analysis, .target-url {

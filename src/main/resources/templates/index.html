@@ -47,6 +47,37 @@
             <span class="switch-label">Index URL</span>
           </div>
         </form>
+
+        <!-- HackerNews Indexing - Dynamic Island Style -->
+        <div class="hn-island-container">
+          <div class="hn-island">
+            <div class="hn-island-compact">
+              <span class="hn-icon">📰</span>
+              <span class="hn-text">Index HackerNews</span>
+            </div>
+            <div class="hn-island-expanded">
+              <form
+                th:action="@{/index-hackernews}"
+                method="post"
+                class="hn-island-form"
+              >
+                <div class="hn-island-input-group">
+                  <label for="hn-max-urls">Top stories:</label>
+                  <input
+                    type="number"
+                    id="hn-max-urls"
+                    name="maxUrls"
+                    value="10"
+                    min="1"
+                    max="50"
+                    class="hn-island-input"
+                  />
+                </div>
+                <button type="submit" class="hn-island-btn">Index</button>
+              </form>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div
