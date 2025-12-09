@@ -53,7 +53,7 @@
           <div class="hn-island">
             <div class="hn-island-compact">
               <span class="hn-icon">📰</span>
-              <span class="hn-text">Index HackerNews</span>
+              <span class="hn-text">Index HackerNews Top Stories</span>
             </div>
             <div class="hn-island-expanded">
               <form
@@ -111,8 +111,8 @@
             queryInput.placeholder = "https://site.com/to/index";
             document.getElementById("submit-btn").innerHTML = "+";
             // Toggle active class
-            if (searchLabel) searchLabel.classList.remove('active');
-            if (indexLabel) indexLabel.classList.add('active');
+            if (searchLabel) searchLabel.classList.remove("active");
+            if (indexLabel) indexLabel.classList.add("active");
           } else {
             form.action = "/search";
             form.method = "get";
@@ -120,8 +120,8 @@
             queryInput.placeholder = "Search the web...";
             document.getElementById("submit-btn").innerHTML = "➝";
             // Toggle active class
-            if (searchLabel) searchLabel.classList.add('active');
-            if (indexLabel) indexLabel.classList.remove('active');
+            if (searchLabel) searchLabel.classList.add("active");
+            if (indexLabel) indexLabel.classList.remove("active");
           }
         });
       </script>
