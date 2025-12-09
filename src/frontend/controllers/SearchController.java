@@ -46,6 +46,7 @@ public class SearchController {
         } catch (Exception e) {
             System.err.println("[SearchController] Erro ao obter estatísticas: " + e.getMessage());
         }
+        model.addAttribute("activePage", "home");
         return "index";
     }
 
@@ -94,6 +95,7 @@ public class SearchController {
             System.err.println("[SearchController] Erro na pesquisa: " + e.getMessage());
         }
 
+        model.addAttribute("activePage", "search");
         return "search";
     }
 
@@ -171,6 +173,7 @@ public class SearchController {
             System.err.println("[SearchController] Erro ao obter links: " + e.getMessage());
         }
 
+        model.addAttribute("activePage", "links");
         return "links";
     }
 
@@ -192,6 +195,7 @@ public class SearchController {
             System.err.println("[SearchController] Erro ao obter stats: " + e.getMessage());
         }
 
+        model.addAttribute("activePage", "stats");
         return "stats";
     }
 }
