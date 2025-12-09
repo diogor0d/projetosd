@@ -58,6 +58,18 @@ nav {
     align-items: center;
 }
 
+@media (min-width: 1024px) {
+    nav:not(.stats-nav) {
+        max-width: 1000px;
+        padding: 0 2rem;
+    }
+
+    header:has(nav:not(.stats-nav)) {
+        padding-left: 0;
+        padding-right: 0;
+    }
+}
+
 .logo {
     font-size: 1.5rem;
     font-weight: 700;
