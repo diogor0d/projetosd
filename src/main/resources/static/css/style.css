@@ -109,12 +109,15 @@ nav {
 .page-search-btn {
     position: absolute;
     right: 0.75rem;
-    background: none;
+    background: var(--accent);
     border: none;
-    color: var(--text-secondary);
-    font-size: 1.5rem;
+    color: var(--bg-app);
+    font-size: 1.2rem;
     cursor: pointer;
     padding: 0.5rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
@@ -122,8 +125,8 @@ nav {
 }
 
 .page-search-btn:hover {
-    color: var(--accent);
-    transform: translateX(3px);
+    background: var(--accent-hover);
+    transform: translateX(3px) scale(1.05);
 }
 
 .page-mode-switch {
@@ -137,6 +140,12 @@ nav {
     font-size: 0.875rem;
     color: var(--text-secondary);
     font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.page-switch-label.active {
+    font-weight: 700;
+    color: var(--accent);
 }
 
 .nav-links a {
@@ -317,6 +326,19 @@ input:focus {
 }
 input:checked + .slider { border-color: var(--accent); }
 input:checked + .slider:before { transform: translateX(22px); background-color: var(--accent); }
+
+/* --- Switch Labels --- */
+.switch-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.switch-label.active {
+    font-weight: 700;
+    color: var(--accent);
+}
 
 /* --- HackerNews Dynamic Island --- */
 .hn-island-container {
