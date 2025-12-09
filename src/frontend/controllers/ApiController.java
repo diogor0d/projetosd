@@ -98,7 +98,7 @@ public class ApiController {
             String query = (String) body.get("query");
             @SuppressWarnings("unchecked")
             List<Map<String, String>> resultsData = (List<Map<String, String>>) body.get("results");
-            
+
             if (query == null || resultsData == null || resultsData.isEmpty()) {
                 return ResponseEntity.badRequest()
                         .body(Map.of("error", "Query e resultados são obrigatórios"));
@@ -106,29 +106,27 @@ public class ApiController {
 
             if (!openAIService.isAvailable()) {
                 return ResponseEntity.ok(Map.of(
-                    "analysis", "AI Analysis indisponível: API key não configurada"
-                ));
+                        "analysis", "AI Analysis indisponível: API key não configurada"));
             }
 
             // Converte os resultados do Map para SearchResult
             List<SearchResult> results = resultsData.stream()
-                .map(r -> new SearchResult(
-                    r.get("url"),
-                    r.get("title"),
-                    r.get("snippet"),
-                    0  // relevance não é necessário para AI analysis
-                ))
-                .toList();
+                    .map(r -> new SearchResult(
+                            r.get("url"),
+                            r.get("title"),
+                            r.get("snippet"),
+                            0 // relevance não é necessário para AI analysis
+                    ))
+                    .toList();
 
             String analysis = openAIService.generateAnalysis(query, results);
             return ResponseEntity.ok(Map.of("analysis", analysis));
-            
+
         } catch (Exception e) {
             System.err.println("[ApiController] Erro na análise AI: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.ok(Map.of(
-                "analysis", "Erro ao gerar análise: " + e.getMessage()
-            ));
+                    "analysis", "Erro ao gerar análise: " + e.getMessage()));
         }
     }
 

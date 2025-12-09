@@ -76,7 +76,9 @@ public class SearchController {
                 if (openAIService.isAvailable()) {
                     System.out.println("[SearchController] OpenAI service está disponível");
                     String analysis = openAIService.generateAnalysis(query, results);
-                    System.out.println("[SearchController] Análise gerada: " + (analysis != null ? analysis.substring(0, Math.min(50, analysis.length())) + "..." : "null"));
+                    System.out.println("[SearchController] Análise gerada: "
+                            + (analysis != null ? analysis.substring(0, Math.min(50, analysis.length())) + "..."
+                                    : "null"));
                     model.addAttribute("aiAnalysis", analysis);
                 } else {
                     System.out.println("[SearchController] OpenAI service NÃO está disponível");
