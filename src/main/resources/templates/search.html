@@ -18,30 +18,36 @@
         </h2>
 
         <div class="action-buttons">
-          <form th:action="@{/search}" method="get" style="display: inline">
-            <input type="hidden" name="q" th:value="${query}" />
-            <input type="hidden" name="page" th:value="${page}" />
-            <input type="hidden" name="aiAnalysis" value="true" />
-            <button type="submit" class="btn-secondary">🤖 AI Analysis</button>
-          </form>
+          <button type="button" class="btn-secondary" id="ai-analysis-btn" onclick="requestAIAnalysis()">
+            <span class="btn-icon">🤖</span>
+            <span class="btn-text">AI Analysis</span>
+          </button>
         </div>
       </div>
 
-      <div
-        th:if="${aiAnalysis}"
-        class="ai-analysis"
-        style="border-left: 4px solid var(--accent)"
-      >
-        <h3 style="margin-bottom: 0.5rem">🤖 Contextual Analysis</h3>
-        <div
-          class="analysis-content"
-          th:text="${aiAnalysis}"
-          style="
-            white-space: pre-wrap;
-            font-family: monospace;
-            font-size: 0.9rem;
-          "
-        ></div>
+      <!-- AI Analysis Loading/Result Container -->
+      <div id="ai-analysis-container" style="display: none;">
+        <!-- Loading State -->
+        <div id="ai-loading-pill" class="ai-loading-pill">
+          <div class="ai-loading-content">
+            <span class="ai-loading-icon">🤖</span>
+            <span class="ai-loading-text">Generating AI analysis</span>
+            <span class="ai-loading-dots">
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Result State -->
+        <div id="ai-result-pill" class="ai-analysis-pill" style="display: none;">
+          <div class="ai-pill-header">
+            <span class="ai-icon">🤖</span>
+            <span class="ai-title">AI Contextual Analysis</span>
+          </div>
+          <div class="ai-pill-content" id="ai-analysis-content"></div>
+        </div>
       </div>
 
       <div th:if="${hasResults}" class="search-results">
@@ -107,6 +113,136 @@
           >Next →</a
         >
       </div>
+
+      <script th:inline="javascript">
+        /*<![CDATA[*/
+        const searchQuery = /*[[${query}]]*/ '';
+        const searchResults = /*[[${results}]]*/ [];
+
+        function requestAIAnalysis() {
+          const button = document.getElementById('ai-analysis-btn');
+          const container = document.getElementById('ai-analysis-container');
+          const loadingPill = document.getElementById('ai-loading-pill');
+          const resultPill = document.getElementById('ai-result-pill');
+
+          // Fade out button
+          button.style.opacity = '0';
+          button.style.transform = 'scale(0.9)';
+          
+          setTimeout(() => {
+            button.style.display = 'none';
+            
+            // Show container and loading pill with animation
+            container.style.display = 'block';
+            container.style.opacity = '0';
+            container.style.transform = 'translateY(-10px)';
+            loadingPill.style.display = 'block';
+            resultPill.style.display = 'none';
+            
+            // Trigger animation
+            requestAnimationFrame(() => {
+              container.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+              container.style.opacity = '1';
+              container.style.transform = 'translateY(0)';
+            });
+          }, 300);
+
+          // Prepare results data
+          const resultsData = searchResults.map(r => ({
+            url: r.url,
+            title: r.title,
+            snippet: r.snippet
+          }));
+
+          // Make async request
+          fetch('/api/ai-analysis', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              query: searchQuery,
+              results: resultsData
+            })
+          })
+          .then(response => response.json())
+          .then(data => {
+            // Fade out loading pill
+            loadingPill.style.opacity = '0';
+            loadingPill.style.transform = 'scale(0.95)';
+            
+            setTimeout(() => {
+              loadingPill.style.display = 'none';
+              
+              // Prepare result pill
+              const contentDiv = document.getElementById('ai-analysis-content');
+              contentDiv.textContent = ''; // Clear content
+              resultPill.style.display = 'block';
+              resultPill.style.opacity = '0';
+              resultPill.style.transform = 'translateY(-10px)';
+              
+              // Trigger fade in animation
+              requestAnimationFrame(() => {
+                resultPill.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                resultPill.style.opacity = '1';
+                resultPill.style.transform = 'translateY(0)';
+              });
+              
+              // Start typewriter effect after pill is visible
+              setTimeout(() => {
+                typeWriter(data.analysis, contentDiv, 5); // 5ms per character for speed
+              }, 400);
+            }, 400);
+          })
+          .catch(error => {
+            loadingPill.style.opacity = '0';
+            
+            setTimeout(() => {
+              loadingPill.style.display = 'none';
+              document.getElementById('ai-analysis-content').textContent = 'Erro ao gerar análise: ' + error;
+              resultPill.style.display = 'block';
+              resultPill.style.opacity = '0';
+              
+              requestAnimationFrame(() => {
+                resultPill.style.transition = 'opacity 0.5s ease';
+                resultPill.style.opacity = '1';
+              });
+            }, 400);
+          });
+        }
+
+        // Typewriter effect with glowing cursor
+        function typeWriter(text, element, speed) {
+          let index = 0;
+          element.classList.add('typing');
+          
+          function type() {
+            if (index < text.length) {
+              const char = text.charAt(index);
+              
+              // Create span for each character with glow animation
+              const span = document.createElement('span');
+              span.textContent = char;
+              span.className = 'glow-char';
+              element.appendChild(span);
+              
+              index++;
+              
+              // Add pause after paragraph breaks
+              if (char === '\n' && text.charAt(index) === '\n') {
+                setTimeout(type, 200); // 200ms pause between paragraphs
+              } else {
+                setTimeout(type, speed);
+              }
+            } else {
+              element.classList.remove('typing');
+            }
+          }
+          
+          type();
+        }
+        /*]]>*/
+      </script>
     </main>
   </body>
 </html>

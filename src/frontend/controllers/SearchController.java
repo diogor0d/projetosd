@@ -71,9 +71,17 @@ public class SearchController {
             model.addAttribute("hasResults", results != null && !results.isEmpty());
 
             // gera análise com IA se solicitado e há resultados
-            if (aiAnalysis && results != null && !results.isEmpty() && openAIService.isAvailable()) {
-                String analysis = openAIService.generateAnalysis(query, results);
-                model.addAttribute("aiAnalysis", analysis);
+            if (aiAnalysis && results != null && !results.isEmpty()) {
+                System.out.println("[SearchController] AI Analysis solicitado para query: " + query);
+                if (openAIService.isAvailable()) {
+                    System.out.println("[SearchController] OpenAI service está disponível");
+                    String analysis = openAIService.generateAnalysis(query, results);
+                    System.out.println("[SearchController] Análise gerada: " + (analysis != null ? analysis.substring(0, Math.min(50, analysis.length())) + "..." : "null"));
+                    model.addAttribute("aiAnalysis", analysis);
+                } else {
+                    System.out.println("[SearchController] OpenAI service NÃO está disponível");
+                    model.addAttribute("aiAnalysis", "AI Analysis indisponível: API key não configurada");
+                }
             }
 
             // indexa stories do Hacker News se solicitado

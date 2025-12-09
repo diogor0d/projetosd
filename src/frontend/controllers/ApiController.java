@@ -2,6 +2,7 @@ package frontend.controllers;
 
 import frontend.services.GatewayService;
 import frontend.services.StatsUpdateService;
+import frontend.services.OpenAIService;
 import common.SearchResult;
 import common.SystemStats;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,9 @@ public class ApiController {
 
     @Autowired
     private StatsUpdateService statsUpdateService;
+
+    @Autowired
+    private OpenAIService openAIService;
 
     /**
      * endpoint para pesquisa via API
@@ -82,6 +86,49 @@ public class ApiController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * endpoint para gerar análise AI assíncrona
+     */
+    @PostMapping("/ai-analysis")
+    public ResponseEntity<?> generateAIAnalysis(@RequestBody Map<String, Object> body) {
+        try {
+            String query = (String) body.get("query");
+            @SuppressWarnings("unchecked")
+            List<Map<String, String>> resultsData = (List<Map<String, String>>) body.get("results");
+            
+            if (query == null || resultsData == null || resultsData.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Query e resultados são obrigatórios"));
+            }
+
+            if (!openAIService.isAvailable()) {
+                return ResponseEntity.ok(Map.of(
+                    "analysis", "AI Analysis indisponível: API key não configurada"
+                ));
+            }
+
+            // Converte os resultados do Map para SearchResult
+            List<SearchResult> results = resultsData.stream()
+                .map(r -> new SearchResult(
+                    r.get("url"),
+                    r.get("title"),
+                    r.get("snippet"),
+                    0  // relevance não é necessário para AI analysis
+                ))
+                .toList();
+
+            String analysis = openAIService.generateAnalysis(query, results);
+            return ResponseEntity.ok(Map.of("analysis", analysis));
+            
+        } catch (Exception e) {
+            System.err.println("[ApiController] Erro na análise AI: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(Map.of(
+                "analysis", "Erro ao gerar análise: " + e.getMessage()
+            ));
         }
     }
 

@@ -362,6 +362,84 @@ input:checked + .slider:before { transform: translateX(22px); background-color: 
     opacity: 0.9;
 }
 
+/* --- AI Analysis Pill --- */
+.ai-analysis-pill {
+    background: var(--bg-app);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+    transition: all 0.6s ease;
+}
+
+.ai-analysis-pill:hover {
+    border-color: var(--accent);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.ai-pill-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.ai-icon {
+    font-size: 1.3rem;
+}
+
+.ai-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ai-pill-content {
+    color: var(--text-primary);
+    line-height: 1.7;
+    white-space: pre-wrap;
+    font-size: 0.95rem;
+    position: relative;
+}
+
+.ai-pill-content .glow-char {
+    animation: char-glow 0.6s ease-out;
+}
+
+@keyframes char-glow {
+    0% {
+        color: var(--accent);
+        text-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent), 0 0 30px rgba(255, 255, 255, 0.5);
+    }
+    100% {
+        color: var(--text-primary);
+        text-shadow: none;
+    }
+}
+
+.ai-pill-content.typing::after {
+    content: '▋';
+    color: var(--accent);
+    animation: blink-cursor 0.8s step-end infinite, cursor-glow 1.5s ease-in-out infinite;
+    margin-left: 2px;
+}
+
+@keyframes blink-cursor {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+@keyframes cursor-glow {
+    0%, 100% {
+        text-shadow: 0 0 5px var(--accent), 0 0 10px var(--accent);
+    }
+    50% {
+        text-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent), 0 0 30px var(--accent);
+    }
+}
+
 /* --- Cards (Results, Stats) --- */
 .card, .stat-card, .barrel-card, .hn-index, .ai-analysis, .target-url {
     background: var(--bg-surface);
@@ -397,7 +475,113 @@ input:checked + .slider:before { transform: translateX(22px); background-color: 
     border-radius: 20px;
     cursor: pointer;
     font-size: 0.9rem;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-secondary:hover {
+    border-color: var(--accent);
+    background: var(--bg-hover);
+    transform: translateY(-2px);
+}
+
+.btn-icon {
+    font-size: 1rem;
+}
+
+.btn-text {
+    font-weight: 500;
+}
+
+/* AI Analysis Container */
+#ai-analysis-container {
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+/* AI Loading State */
+.ai-loading-pill {
+    background: var(--bg-app);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+    animation: pulse-border 2s ease-in-out infinite;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+@keyframes pulse-border {
+    0%, 100% {
+        border-color: var(--accent);
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    }
+    50% {
+        border-color: var(--accent);
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+    }
+}
+
+.ai-loading-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.ai-loading-icon {
+    font-size: 1.3rem;
+    animation: bounce 1s ease-in-out infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+.ai-loading-text {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent);
+    animation: glow 2s ease-in-out infinite;
+}
+
+@keyframes glow {
+    0%, 100% {
+        color: var(--accent);
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    }
+    50% {
+        color: var(--text-primary);
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+    }
+}
+
+.ai-loading-dots {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.dot {
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: dot-pulse 1.4s ease-in-out infinite;
+}
+
+.dot:nth-child(1) { animation-delay: 0s; }
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dot-pulse {
+    0%, 100% {
+        opacity: 0.3;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
 }
 .btn-secondary:hover { border-color: var(--accent); background: var(--bg-hover); }
 
