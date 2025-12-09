@@ -143,6 +143,14 @@
             <span class="ai-title">AI Contextual Analysis</span>
           </div>
           <div class="ai-pill-content" id="ai-analysis-content"></div>
+          <button
+            id="ai-show-more-btn"
+            class="ai-show-more-btn"
+            style="display: none"
+            onclick="toggleAIContent()"
+          >
+            Show More
+          </button>
         </div>
       </div>
 
@@ -195,13 +203,13 @@
         "
       >
         <a
-          th:if="${page > 1}"
+          th:if="${page > 0}"
           th:href="@{/search(q=${query}, page=${page - 1})}"
           class="btn-secondary"
           >← Previous</a
         >
         <span style="padding: 0.5rem"
-          >Page <span th:text="${page}">1</span></span
+          >Page <span th:text="${page + 1}">1</span></span
         >
         <a
           th:href="@{/search(q=${query}, page=${page + 1})}"
@@ -272,7 +280,8 @@
                     typeWriter(
                       "Not enough search results to generate an AI overview. Please try a different search query.",
                       contentDiv,
-                      5
+                      5,
+                      false
                     );
                   }, 400);
                 }, 400);
@@ -337,7 +346,7 @@
                     } else {
                       contentDiv.style.color = "var(--text-primary)";
                     }
-                    typeWriter(message, contentDiv, 5); // 5ms per character for speed
+                    typeWriter(message, contentDiv, 5, !data.error); // 5ms per character for speed
                   }, 400);
                 }, 400);
               })
@@ -364,9 +373,23 @@
         }
 
         // Typewriter effect with glowing cursor
-        function typeWriter(text, element, speed) {
+        function typeWriter(text, element, speed, checkWordCount = false) {
           let index = 0;
           element.classList.add("typing");
+          element.setAttribute("data-full-text", text);
+
+          // Check word count immediately and show button if needed
+          if (checkWordCount) {
+            const wordCount = text.trim().split(/\s+/).length;
+            if (wordCount > 100) {
+              const showMoreBtn = document.getElementById("ai-show-more-btn");
+              if (showMoreBtn) {
+                // Collapse content immediately
+                element.classList.add("ai-content-collapsed");
+                showMoreBtn.style.display = "block";
+              }
+            }
+          }
 
           function type() {
             if (index < text.length) {
@@ -394,10 +417,29 @@
           type();
         }
 
+        function toggleAIContent() {
+          const contentDiv = document.getElementById("ai-analysis-content");
+          const btn = document.getElementById("ai-show-more-btn");
+
+          if (contentDiv.classList.contains("ai-content-collapsed")) {
+            contentDiv.classList.remove("ai-content-collapsed");
+            btn.textContent = "Show Less";
+          } else {
+            contentDiv.classList.add("ai-content-collapsed");
+            btn.textContent = "Show More";
+            // Scroll to top of AI pill
+            document
+              .getElementById("ai-result-pill")
+              .scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+        }
+
         // Page search bar toggle functionality
         const pageForm = document.getElementById("page-search-form");
         const pageQueryInput = document.getElementById("page-query-input");
-        const pageModeRadios = document.querySelectorAll('input[name="page-mode"]');
+        const pageModeRadios = document.querySelectorAll(
+          'input[name="page-mode"]'
+        );
         const pageReturnQuery = document.getElementById("page-return-query");
 
         if (pageForm && pageQueryInput && pageModeRadios.length > 0) {
@@ -422,7 +464,8 @@
                   pageForm.action = "/index-hackernews";
                   pageForm.method = "post";
                   pageQueryInput.name = "query";
-                  pageQueryInput.placeholder = "Index HN stories with given terms...";
+                  pageQueryInput.placeholder =
+                    "Index HN stories with given terms...";
                   if (pageReturnQuery) pageReturnQuery.disabled = true;
                   break;
               }

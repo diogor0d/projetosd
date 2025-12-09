@@ -56,7 +56,7 @@ public class SearchController {
     @GetMapping("/search")
     public String search(
             @RequestParam("q") String query,
-            @RequestParam(value = "page", defaultValue = "1") int page,
+            @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "aiAnalysis", defaultValue = "false") boolean aiAnalysis,
             @RequestParam(value = "indexHackerNews", defaultValue = "false") boolean indexHackerNews,
             Model model) {

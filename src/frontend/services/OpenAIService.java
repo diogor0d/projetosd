@@ -96,8 +96,8 @@ public class OpenAIService {
                         .append("\n\n");
             }
 
-            prompt.append("Provide a brief analysis (2-3 paragraphs) about what these results reveal ")
-                    .append("about the searched topic, identifying main patterns and insights.");
+            prompt.append(
+                    "You are search engine summary provider part of an experimental search engine (for academic purposes). Provide a brief analysis (2-3 paragraphs) about what these results reveal about the searched topic, identifying main patterns and insights. You have to keep in mind that these results are returned from a page index that may not be big enough to provide useful results.");
 
             // constrói o pedido JSON para a API OpenRouter
             JsonObject requestBody = new JsonObject();

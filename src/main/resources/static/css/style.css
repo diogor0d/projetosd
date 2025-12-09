@@ -597,6 +597,45 @@ input:focus {
     white-space: pre-wrap;
     font-size: 0.95rem;
     position: relative;
+    transition: max-height 0.4s ease;
+}
+
+.ai-pill-content.ai-content-collapsed {
+    max-height: 10em;
+    overflow: hidden;
+    position: relative;
+}
+
+.ai-pill-content.ai-content-collapsed::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3em;
+    background: linear-gradient(to bottom, transparent, var(--bg-surface));
+    pointer-events: none;
+}
+
+.ai-show-more-btn {
+    margin-top: 1rem;
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 0.5rem 1.5rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.ai-show-more-btn:hover {
+    background: var(--accent);
+    color: var(--bg-app);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(129, 201, 149, 0.2);
 }
 
 .ai-pill-content .glow-char {
@@ -611,27 +650,6 @@ input:focus {
     100% {
         color: var(--text-primary);
         text-shadow: none;
-    }
-}
-
-.ai-pill-content.typing::after {
-    content: '▋';
-    color: var(--accent);
-    animation: blink-cursor 0.8s step-end infinite, cursor-glow 1.5s ease-in-out infinite;
-    margin-left: 2px;
-}
-
-@keyframes blink-cursor {
-    0%, 50% { opacity: 1; }
-    51%, 100% { opacity: 0; }
-}
-
-@keyframes cursor-glow {
-    0%, 100% {
-        text-shadow: 0 0 5px var(--accent), 0 0 10px var(--accent);
-    }
-    50% {
-        text-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent), 0 0 30px var(--accent);
     }
 }
 

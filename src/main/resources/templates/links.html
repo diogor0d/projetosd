@@ -8,125 +8,143 @@
   </head>
   <body>
     <main>
-        <!-- Search Bar below header -->
-        <div class="page-search-bar">
-          <form id="page-search-form" th:action="@{/search}" method="get" class="page-search-form">
-            <div class="page-search-input-wrapper">
-              <input
-                type="text"
-                id="page-query-input"
-                name="q"
-                placeholder="Search..."
-                autocomplete="off"
-                class="page-search-input"
-              />
-              <button type="submit" class="page-search-btn">
-                ➝
-              </button>
-            </div>
-            <div class="page-mode-switch">
-              <label class="mode-option">
-                <input type="radio" name="page-mode" value="search" checked />
-                <span class="mode-label">Search</span>
-              </label>
-              <label class="mode-option">
-                <input type="radio" name="page-mode" value="index" />
-                <span class="mode-label">Index URL</span>
-              </label>
-              <label class="mode-option">
-                <input type="radio" name="page-mode" value="hackernews" />
-                <span class="mode-label">Index HN</span>
-              </label>
-            </div>
-            <!-- Hidden field for returning to links page after indexing -->
-            <input type="hidden" id="page-return-url" name="returnUrl" th:value="${targetUrl}" />
-          </form>
-        </div>
+      <!-- Search Bar below header -->
+      <div class="page-search-bar">
+        <form
+          id="page-search-form"
+          th:action="@{/search}"
+          method="get"
+          class="page-search-form"
+        >
+          <div class="page-search-input-wrapper">
+            <input
+              type="text"
+              id="page-query-input"
+              name="q"
+              placeholder="Search..."
+              autocomplete="off"
+              class="page-search-input"
+            />
+            <button type="submit" class="page-search-btn">➝</button>
+          </div>
+          <div class="page-mode-switch">
+            <label class="mode-option">
+              <input type="radio" name="page-mode" value="search" checked />
+              <span class="mode-label">Search</span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="page-mode" value="index" />
+              <span class="mode-label">Index URL</span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="page-mode" value="hackernews" />
+              <span class="mode-label">Index HN</span>
+            </label>
+          </div>
+          <!-- Hidden field for returning to links page after indexing -->
+          <input
+            type="hidden"
+            id="page-return-url"
+            name="returnUrl"
+            th:value="${targetUrl}"
+          />
+        </form>
+      </div>
 
-        <!-- Success/Error Messages -->
-        <div th:if="${success}" class="alert alert-success" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(129, 201, 149, 0.1); border: 1px solid var(--success); border-radius: 8px; color: var(--success);">
-          <span th:text="${success}"></span>
-        </div>
+      <!-- Success/Error Messages -->
+      <div
+        th:if="${success}"
+        class="alert alert-success"
+        style="
+          margin-bottom: 1.5rem;
+          padding: 1rem;
+          background: rgba(129, 201, 149, 0.1);
+          border: 1px solid var(--success);
+          border-radius: 8px;
+          color: var(--success);
+        "
+      >
+        <span th:text="${success}"></span>
+      </div>
 
-        <h1>🔗 Páginas que apontam para este URL</h1>
+      <h1>🔗 Páginas que apontam para este URL</h1>
 
-        <!-- URL de destino -->
-        <div class="target-url">
-          <p><strong>URL:</strong></p>
-          <code th:text="${targetUrl}">https://example.com</code>
-        </div>
+      <!-- URL de destino -->
+      <div class="target-url">
+        <p><strong>URL:</strong></p>
+        <code th:text="${targetUrl}">https://example.com</code>
+      </div>
 
-        <!-- mensagem de erro -->
-        <div
-          th:if="${error}"
-          class="alert alert-error"
-          th:text="${error}"
-        ></div>
+      <!-- mensagem de erro -->
+      <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
 
-        <!-- lista de links -->
-        <div th:if="${hasLinks}" class="links-list">
-          <h2>
-            Encontradas
-            <span th:text="${#lists.size(links)}">0</span> referências
-          </h2>
-          <ul>
-            <li th:each="link : ${links}">
-              <a th:href="${link}" target="_blank" th:text="${link}">URL</a>
-            </li>
-          </ul>
-        </div>
+      <!-- lista de links -->
+      <div th:if="${hasLinks}" class="links-list">
+        <h2>
+          Encontradas
+          <span th:text="${#lists.size(links)}">0</span> referências
+        </h2>
+        <ul>
+          <li th:each="link : ${links}">
+            <a th:href="${link}" target="_blank" th:text="${link}">URL</a>
+          </li>
+        </ul>
+      </div>
 
-        <!-- mensagem quando não há links -->
-        <div th:if="${!hasLinks && targetUrl != null}" class="no-results">
-          <h2>Nenhuma página aponta para este URL</h2>
-          <p>Isto pode significar que:</p>
-          <ul>
-            <li>O URL ainda não foi indexado</li>
-            <li>Nenhuma página indexada contém links para este URL</li>
-            <li>
-              O crawler ainda não descobriu páginas que referenciem este URL
-            </li>
-          </ul>
-        </div>
+      <!-- mensagem quando não há links -->
+      <div th:if="${!hasLinks && targetUrl != null}" class="no-results">
+        <h2>Nenhuma página aponta para este URL</h2>
+        <p>Isto pode significar que:</p>
+        <ul>
+          <li>O URL ainda não foi indexado</li>
+          <li>Nenhuma página indexada contém links para este URL</li>
+          <li>
+            O crawler ainda não descobriu páginas que referenciem este URL
+          </li>
+        </ul>
+      </div>
 
-        <!-- botão voltar -->
-        <div class="action-buttons">
-          <button onclick="window.history.back()" class="btn-secondary">
-            ← Voltar
-          </button>
-        </div>
+      <!-- botão voltar -->
+      <div class="action-buttons">
+        <button onclick="window.history.back()" class="btn-secondary">
+          ← Voltar
+        </button>
+      </div>
 
       <script>
         // Page search bar toggle functionality
-        document.addEventListener('DOMContentLoaded', function() {
-          const pageForm = document.getElementById('page-search-form');
-          const pageQueryInput = document.getElementById('page-query-input');
-          const pageModeRadios = document.querySelectorAll('input[name="page-mode"]');
-          const pageReturnUrl = document.getElementById('page-return-url');
+        document.addEventListener("DOMContentLoaded", function () {
+          const pageForm = document.getElementById("page-search-form");
+          const pageQueryInput = document.getElementById("page-query-input");
+          const pageModeRadios = document.querySelectorAll(
+            'input[name="page-mode"]'
+          );
+          const pageReturnUrl = document.getElementById("page-return-url");
 
           if (pageForm && pageQueryInput && pageModeRadios.length > 0) {
             pageModeRadios.forEach((radio) => {
-              radio.addEventListener('change', function() {
+              radio.addEventListener("change", function () {
                 switch (this.value) {
-                  case 'search':
-                    pageForm.action = '/search';
-                    pageForm.method = 'get';
-                    pageQueryInput.name = 'q';
-                    pageQueryInput.placeholder = 'Search...';
+                  case "search":
+                    pageForm.action = "/search";
+                    pageForm.method = "get";
+                    pageQueryInput.name = "q";
+                    pageQueryInput.placeholder = "Search...";
                     if (pageReturnUrl) pageReturnUrl.disabled = true;
                     break;
-                  case 'index':
-                    pageForm.action = '/index';
-                    pageForm.method = 'post';
-                    pageQueryInput.name = 'url';
-                    pageQueryInput.placeholder = 'https://site.com/to/index';
+                  case "index":
+                    pageForm.action = "/index";
+                    pageForm.method = "post";
+                    pageQueryInput.name = "url";
+                    pageQueryInput.placeholder = "https://site.com/to/index";
                     if (pageReturnUrl) pageReturnUrl.disabled = false;
                     break;
-                  case 'hackernews':
-                    pageForm.action = '/index-hackernews';
-                    pageForm.method = 'post';
-                    pageQueryInput.name = 'query';
-                    pageQueryInput.placeholder = 'Index HN stories with given terms...';
+                  case "hackernews":
+                    pageForm.action = "/index-hackernews";
+                    pageForm.method = "post";
+                    pageQueryInput.name = "query";
+                    pageQueryInput.placeholder =
+                      "Index HN stories with given terms...";
                     if (pageReturnUrl) pageReturnUrl.disabled = true;
                     break;
                 }
