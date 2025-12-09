@@ -2,11 +2,13 @@ package frontend.services;
 
 import common.*;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * serviço que atua como cliente RMI para comunicar com o Gateway
@@ -34,6 +36,22 @@ public class GatewayService {
         String url = String.format("rmi://%s:%d/%s", rmiHost, rmiPort, rmiName);
         gateway = (IGateway) Naming.lookup(url);
         System.out.println("[GatewayService] Conectado ao Gateway RMI: " + url);
+    }
+
+    /**
+     * submete um URL para indexação de forma assíncrona
+     */
+    @Async
+    public CompletableFuture<Void> indexURLAsync(String url) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                ensureConnected();
+                gateway.indexURL(url);
+                System.out.println("[GatewayService] URL indexado com sucesso: " + url);
+            } catch (Exception e) {
+                System.err.println("[GatewayService] Erro ao indexar URL " + url + ": " + e.getMessage());
+            }
+        });
     }
 
     /**

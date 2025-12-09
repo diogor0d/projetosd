@@ -81,8 +81,8 @@ public class SearchController {
                                     : "null"));
                     model.addAttribute("aiAnalysis", analysis);
                 } else {
-                    System.out.println("[SearchController] OpenAI service NÃO está disponível");
-                    model.addAttribute("aiAnalysis", "AI Analysis indisponível: API key não configurada");
+                    System.out.println("[SearchController] OpenAI service NOT available");
+                    model.addAttribute("aiAnalysis", "AI Analysis unavailable: API key not configured");
                 }
             }
 
@@ -92,17 +92,17 @@ public class SearchController {
                     int indexed = hackerNewsService.indexTopStoriesWithTerms(query, 5);
                     model.addAttribute("hnIndexed", indexed);
                     model.addAttribute("hnMessage",
-                            indexed + " stories do Hacker News foram submetidas para indexação");
+                            indexed + " Hacker News stories submitted for indexing");
                 } catch (Exception e) {
-                    System.err.println("[SearchController] Erro ao indexar Hacker News: " + e.getMessage());
-                    model.addAttribute("hnMessage", "Erro ao indexar stories do Hacker News");
+                    System.err.println("[SearchController] Error indexing Hacker News: " + e.getMessage());
+                    model.addAttribute("hnMessage", "Error indexing Hacker News stories");
                 }
             }
 
         } catch (Exception e) {
-            model.addAttribute("error", "Erro ao realizar pesquisa: " + e.getMessage());
+            model.addAttribute("error", "Error performing search: " + e.getMessage());
             model.addAttribute("hasResults", false);
-            System.err.println("[SearchController] Erro na pesquisa: " + e.getMessage());
+            System.err.println("[SearchController] Search error: " + e.getMessage());
         }
 
         model.addAttribute("activePage", "search");
@@ -122,7 +122,7 @@ public class SearchController {
         try {
             // valida URL básico
             if (url == null || url.trim().isEmpty()) {
-                redirectAttributes.addFlashAttribute("error", "URL não pode estar vazio");
+                redirectAttributes.addFlashAttribute("error", "URL cannot be empty");
                 if (returnQuery != null && !returnQuery.trim().isEmpty()) {
                     return "redirect:/search?q=" + returnQuery;
                 } else if (returnUrl != null && !returnUrl.trim().isEmpty()) {
@@ -136,12 +136,14 @@ public class SearchController {
                 url = "http://" + url;
             }
 
-            gatewayService.indexURL(url);
-            redirectAttributes.addFlashAttribute("success", "URL submetido para indexação: " + url);
+            // indexa de forma assíncrona
+            gatewayService.indexURLAsync(url);
+            redirectAttributes.addFlashAttribute("success",
+                    "URL submitted for indexing: " + url + ". Processing in the background.");
 
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Erro ao indexar URL: " + e.getMessage());
-            System.err.println("[SearchController] Erro ao indexar: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "Error indexing URL: " + e.getMessage());
+            System.err.println("[SearchController] Indexing error: " + e.getMessage());
         }
 
         // Redirect back to search page if returnQuery is provided
@@ -165,18 +167,20 @@ public class SearchController {
             RedirectAttributes redirectAttributes) {
 
         try {
-            int indexed = hackerNewsService.indexTopStoriesWithTerms(query, maxUrls);
+            // inicia indexação assíncrona
+            hackerNewsService.indexTopStoriesWithTermsAsync(query, maxUrls);
+
+            // retorna imediatamente com mensagem de sucesso
             redirectAttributes.addFlashAttribute("success",
-                    indexed + " URLs do Hacker News submetidos para indexação");
-            redirectAttributes.addFlashAttribute("searchQuery", query);
+                    "📰 Indexing HackerNews stories containing '" + query + "'. Processing in the background.");
 
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error",
-                    "Erro ao indexar Hacker News: " + e.getMessage());
-            System.err.println("[SearchController] Erro ao indexar HN: " + e.getMessage());
+                    "Error starting Hacker News indexing: " + e.getMessage());
+            System.err.println("[SearchController] HN indexing error: " + e.getMessage());
         }
 
-        return "redirect:/search?q=" + query;
+        return "redirect:/";
     }
 
     /**
@@ -194,8 +198,8 @@ public class SearchController {
             model.addAttribute("hasLinks", links != null && !links.isEmpty());
 
         } catch (Exception e) {
-            model.addAttribute("error", "Erro ao obter ligações: " + e.getMessage());
-            System.err.println("[SearchController] Erro ao obter links: " + e.getMessage());
+            model.addAttribute("error", "Error retrieving links: " + e.getMessage());
+            System.err.println("[SearchController] Error getting links: " + e.getMessage());
         }
 
         model.addAttribute("activePage", "links");
@@ -216,8 +220,8 @@ public class SearchController {
             model.addAttribute("queueStatus", queueStatus);
 
         } catch (Exception e) {
-            model.addAttribute("error", "Erro ao obter estatísticas: " + e.getMessage());
-            System.err.println("[SearchController] Erro ao obter stats: " + e.getMessage());
+            model.addAttribute("error", "Error retrieving statistics: " + e.getMessage());
+            System.err.println("[SearchController] Error getting stats: " + e.getMessage());
         }
 
         model.addAttribute("activePage", "stats");

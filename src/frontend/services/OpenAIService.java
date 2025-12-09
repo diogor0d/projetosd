@@ -75,14 +75,14 @@ public class OpenAIService {
     public String generateAnalysis(String searchTerms, List<SearchResult> results) {
         String key = getApiKey();
         if (key == null || key.isEmpty()) {
-            return "Análise indisponível: chave da API OpenRouter não configurada. " +
-                    "Configure a chave em application.properties (openrouter.api.key) ou no ficheiro key.openrouterai.txt";
+            return "Analysis unavailable: OpenRouter API key not configured. " +
+                    "Set the key in application.properties (openrouter.api.key) or in key.openrouterai.txt file";
         }
 
         try {
             // constrói o prompt com base nos resultados
             StringBuilder prompt = new StringBuilder();
-            prompt.append("Analisa os seguintes resultados de pesquisa para os termos '")
+            prompt.append("Analyze the following search results for the terms '")
                     .append(searchTerms)
                     .append("':\n\n");
 
@@ -96,8 +96,8 @@ public class OpenAIService {
                         .append("\n\n");
             }
 
-            prompt.append("Fornece uma análise breve (2-3 parágrafos) sobre o que estes resultados revelam ")
-                    .append("sobre o tema pesquisado, identificando padrões e insights principais.");
+            prompt.append("Provide a brief analysis (2-3 paragraphs) about what these results reveal ")
+                    .append("about the searched topic, identifying main patterns and insights.");
 
             // constrói o pedido JSON para a API OpenRouter
             JsonObject requestBody = new JsonObject();
@@ -137,12 +137,12 @@ public class OpenAIService {
                 return messageObj.get("content").getAsString().trim();
             }
 
-            return "Erro ao processar resposta da API OpenRouter.";
+            return "Error processing OpenRouter API response.";
 
         } catch (Exception e) {
-            System.err.println("[OpenAIService] Erro ao gerar análise: " + e.getMessage());
+            System.err.println("[OpenAIService] Error generating analysis: " + e.getMessage());
             e.printStackTrace();
-            return "Erro ao gerar análise: " + e.getMessage();
+            return "Error generating analysis: " + e.getMessage();
         }
     }
 

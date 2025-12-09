@@ -4,11 +4,13 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * serviço para integração com a API REST do Hacker News
@@ -113,6 +115,41 @@ public class HackerNewsService {
         }
 
         return matchingStories;
+    }
+
+    /**
+     * indexa URLs das top stories do Hacker News que contenham os termos
+     * executa de forma assíncrona para não bloquear o utilizador
+     * 
+     * @param searchTerms termos para filtrar stories
+     * @param maxUrls     número máximo de URLs a indexar
+     * @return número de URLs indexados
+     */
+    @Async
+    public CompletableFuture<Integer> indexTopStoriesWithTermsAsync(String searchTerms, int maxUrls) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                List<HNStory> stories = getTopStoriesWithTerms(searchTerms, maxUrls);
+
+                int indexed = 0;
+                for (HNStory story : stories) {
+                    try {
+                        gatewayService.indexURL(story.url);
+                        indexed++;
+                    } catch (Exception e) {
+                        System.err.println(
+                                "[HackerNewsService] Erro ao indexar URL " + story.url + ": " + e.getMessage());
+                    }
+                }
+
+                System.out.println("[HackerNewsService] Indexação concluída: " + indexed + " URLs de " + stories.size()
+                        + " stories");
+                return indexed;
+            } catch (Exception e) {
+                System.err.println("[HackerNewsService] Erro na indexação assíncrona: " + e.getMessage());
+                return 0;
+            }
+        });
     }
 
     /**

@@ -25,12 +25,18 @@
               </button>
             </div>
             <div class="page-mode-switch">
-              <span class="page-switch-label active" id="page-search-label">Search</span>
-              <label class="switch">
-                <input type="checkbox" id="page-index-mode" />
-                <span class="slider"></span>
+              <label class="mode-option">
+                <input type="radio" name="page-mode" value="search" checked />
+                <span class="mode-label">Search</span>
               </label>
-              <span class="page-switch-label" id="page-index-label">Index URL</span>
+              <label class="mode-option">
+                <input type="radio" name="page-mode" value="index" />
+                <span class="mode-label">Index URL</span>
+              </label>
+              <label class="mode-option">
+                <input type="radio" name="page-mode" value="hackernews" />
+                <span class="mode-label">Index HN</span>
+              </label>
             </div>
             <!-- Hidden field for returning to links page after indexing -->
             <input type="hidden" id="page-return-url" name="returnUrl" th:value="${targetUrl}" />
@@ -95,42 +101,40 @@
         document.addEventListener('DOMContentLoaded', function() {
           const pageForm = document.getElementById('page-search-form');
           const pageQueryInput = document.getElementById('page-query-input');
-          const pageIndexModeCheckbox = document.getElementById('page-index-mode');
+          const pageModeRadios = document.querySelectorAll('input[name="page-mode"]');
           const pageReturnUrl = document.getElementById('page-return-url');
-          const pageSearchLabel = document.getElementById('page-search-label');
-          const pageIndexLabel = document.getElementById('page-index-label');
 
-          if (pageForm && pageQueryInput && pageIndexModeCheckbox) {
-            pageIndexModeCheckbox.addEventListener('change', function() {
-              if (this.checked) {
-                pageForm.action = '/index';
-                pageForm.method = 'post';
-                pageQueryInput.name = 'url';
-                pageQueryInput.placeholder = 'https://example.com';
-                // Toggle active class
-                if (pageSearchLabel) pageSearchLabel.classList.remove('active');
-                if (pageIndexLabel) pageIndexLabel.classList.add('active');
-                // Keep returnUrl field for redirect back to links page
-                if (pageReturnUrl) {
-                  pageReturnUrl.disabled = false;
+          if (pageForm && pageQueryInput && pageModeRadios.length > 0) {
+            pageModeRadios.forEach((radio) => {
+              radio.addEventListener('change', function() {
+                switch (this.value) {
+                  case 'search':
+                    pageForm.action = '/search';
+                    pageForm.method = 'get';
+                    pageQueryInput.name = 'q';
+                    pageQueryInput.placeholder = 'Search...';
+                    if (pageReturnUrl) pageReturnUrl.disabled = true;
+                    break;
+                  case 'index':
+                    pageForm.action = '/index';
+                    pageForm.method = 'post';
+                    pageQueryInput.name = 'url';
+                    pageQueryInput.placeholder = 'https://site.com/to/index';
+                    if (pageReturnUrl) pageReturnUrl.disabled = false;
+                    break;
+                  case 'hackernews':
+                    pageForm.action = '/index-hackernews';
+                    pageForm.method = 'post';
+                    pageQueryInput.name = 'query';
+                    pageQueryInput.placeholder = 'Index HN stories with given terms...';
+                    if (pageReturnUrl) pageReturnUrl.disabled = true;
+                    break;
                 }
-              } else {
-                pageForm.action = '/search';
-                pageForm.method = 'get';
-                pageQueryInput.name = 'q';
-                pageQueryInput.placeholder = 'Search...';
-                // Toggle active class
-                if (pageSearchLabel) pageSearchLabel.classList.add('active');
-                if (pageIndexLabel) pageIndexLabel.classList.remove('active');
-                // Disable returnUrl in search mode
-                if (pageReturnUrl) {
-                  pageReturnUrl.disabled = true;
-                }
-              }
+              });
             });
 
             // Initially disable returnUrl if in search mode
-            if (pageReturnUrl && !pageIndexModeCheckbox.checked) {
+            if (pageReturnUrl) {
               pageReturnUrl.disabled = true;
             }
           }

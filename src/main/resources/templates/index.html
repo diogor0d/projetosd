@@ -32,52 +32,22 @@
 
           <div
             class="search-mode-switch"
-            style="
-              margin-top: 1.5rem;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-            "
+            style="margin-top: 1rem; align-items: center"
           >
-            <span class="switch-label active" id="search-label">Search</span>
-            <label class="switch">
-              <input type="checkbox" id="index-mode" />
-              <span class="slider"></span>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="search" checked />
+              <span class="mode-label">Search</span>
             </label>
-            <span class="switch-label" id="index-label">Index URL</span>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="index" />
+              <span class="mode-label">Index URL</span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="hackernews" />
+              <span class="mode-label">Index HN</span>
+            </label>
           </div>
         </form>
-
-        <!-- HackerNews Indexing - Dynamic Island Style -->
-        <div class="hn-island-container">
-          <div class="hn-island">
-            <div class="hn-island-compact">
-              <span class="hn-icon">📰</span>
-              <span class="hn-text">Index HackerNews Top Stories</span>
-            </div>
-            <div class="hn-island-expanded">
-              <form
-                th:action="@{/index-hackernews}"
-                method="post"
-                class="hn-island-form"
-              >
-                <div class="hn-island-input-group">
-                  <label for="hn-max-urls">Top stories:</label>
-                  <input
-                    type="number"
-                    id="hn-max-urls"
-                    name="maxUrls"
-                    value="10"
-                    min="1"
-                    max="50"
-                    class="hn-island-input"
-                  />
-                </div>
-                <button type="submit" class="hn-island-btn">Index</button>
-              </form>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div
@@ -99,29 +69,52 @@
         // Inline script specific to Home
         const form = document.getElementById("search-form");
         const queryInput = document.getElementById("query-input");
-        const indexModeCheckbox = document.getElementById("index-mode");
-        const searchLabel = document.getElementById("search-label");
-        const indexLabel = document.getElementById("index-label");
+        const modeRadios = document.querySelectorAll('input[name="mode"]');
+        const submitBtn = document.getElementById("submit-btn");
 
-        indexModeCheckbox.addEventListener("change", function () {
-          if (this.checked) {
-            form.action = "/index";
-            form.method = "post";
-            queryInput.name = "url";
-            queryInput.placeholder = "https://site.com/to/index";
-            document.getElementById("submit-btn").innerHTML = "+";
-            // Toggle active class
-            if (searchLabel) searchLabel.classList.remove("active");
-            if (indexLabel) indexLabel.classList.add("active");
-          } else {
-            form.action = "/search";
-            form.method = "get";
-            queryInput.name = "q";
-            queryInput.placeholder = "Search the web...";
-            document.getElementById("submit-btn").innerHTML = "➝";
-            // Toggle active class
-            if (searchLabel) searchLabel.classList.add("active");
-            if (indexLabel) indexLabel.classList.remove("active");
+        modeRadios.forEach((radio) => {
+          radio.addEventListener("change", function () {
+            switch (this.value) {
+              case "search":
+                form.action = "/search";
+                form.method = "get";
+                queryInput.name = "q";
+                queryInput.placeholder = "Search the web...";
+                submitBtn.innerHTML = "➝";
+                break;
+              case "index":
+                form.action = "/index";
+                form.method = "post";
+                queryInput.name = "url";
+                queryInput.placeholder = "https://site.com/to/index";
+                submitBtn.innerHTML = "+";
+                break;
+              case "hackernews":
+                form.action = "/search";
+                form.method = "get";
+                queryInput.name = "q";
+                queryInput.placeholder = "Index HN stories with given terms...";
+                submitBtn.innerHTML = "📰";
+                break;
+            }
+          });
+        });
+
+        // Handle form submission for HackerNews mode
+        form.addEventListener("submit", function (e) {
+          const selectedMode = document.querySelector(
+            'input[name="mode"]:checked'
+          ).value;
+          if (selectedMode === "hackernews") {
+            e.preventDefault();
+            const query = queryInput.value.trim();
+            if (query) {
+              // Change form to POST and submit to /index-hackernews
+              form.action = "/index-hackernews";
+              form.method = "post";
+              queryInput.name = "query";
+              form.submit();
+            }
           }
         });
       </script>
