@@ -34,8 +34,23 @@ public class GatewayService {
      */
     public void connect() throws Exception {
         String url = String.format("rmi://%s:%d/%s", rmiHost, rmiPort, rmiName);
-        gateway = (IGateway) Naming.lookup(url);
-        System.out.println("[GatewayService] Conectado ao Gateway RMI: " + url);
+
+        while (true) {
+            try {
+                gateway = (IGateway) Naming.lookup(url);
+                System.out.println("[GatewayService] Conectado ao Gateway RMI: " + url);
+                break; // Connection successful, exit loop
+            } catch (Exception e) {
+                System.err.println("[GatewayService] Falha ao conectar ao Gateway RMI: " + e.getMessage());
+                System.out.println("[GatewayService] Tentando reconectar em 3 segundos...");
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new Exception("Conexão interrompida durante reconexão", ie);
+                }
+            }
+        }
     }
 
     /**
@@ -119,6 +134,19 @@ public class GatewayService {
                 connect();
             } catch (Exception e) {
                 throw new RemoteException("Falha ao conectar ao Gateway RMI", e);
+            }
+        }
+
+        // Test connection validity
+        try {
+            gateway.getSystemStats(); // Simple call to verify connection is alive
+        } catch (RemoteException e) {
+            System.err.println("[GatewayService] Conexão perdida, tentando reconectar...");
+            gateway = null; // Reset gateway
+            try {
+                connect(); // Reconnect with retry logic
+            } catch (Exception ex) {
+                throw new RemoteException("Falha ao reconectar ao Gateway RMI", ex);
             }
         }
     }
