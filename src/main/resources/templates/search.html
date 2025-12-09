@@ -203,13 +203,13 @@
         "
       >
         <a
-          th:if="${page > 0}"
+          th:if="${page > 1}"
           th:href="@{/search(q=${query}, page=${page - 1})}"
           class="btn-secondary"
           >← Previous</a
         >
         <span style="padding: 0.5rem"
-          >Page <span th:text="${page + 1}">1</span></span
+          >Page <span th:text="${page}">1</span></span
         >
         <a
           th:href="@{/search(q=${query}, page=${page + 1})}"
