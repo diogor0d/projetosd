@@ -30,6 +30,9 @@
             });
             
             console.log('[Stats WebSocket] 📡 Subscrito ao tópico /topic/stats');
+            
+            // Fetch initial stats immediately
+            fetchInitialStats();
         }, function(error) {
             console.error('[Stats WebSocket] ❌ Erro na conexão:', error);
             connected = false;
@@ -53,6 +56,20 @@
                 indicator.style.animation = 'none';
             }
         }
+    }
+    
+    // Fetch initial stats via REST API
+    function fetchInitialStats() {
+        console.log('[Stats WebSocket] Fetching initial stats...');
+        fetch('/api/stats')
+            .then(response => response.json())
+            .then(stats => {
+                console.log('[Stats WebSocket] 📊 Initial stats received:', stats);
+                updateStatsUI(stats);
+            })
+            .catch(error => {
+                console.error('[Stats WebSocket] ❌ Error fetching initial stats:', error);
+            });
     }
     
     // atualiza a UI com as novas estatísticas

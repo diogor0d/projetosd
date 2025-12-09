@@ -8,7 +8,22 @@
   </head>
   <body>
     <main>
-      <h1 style="margin-bottom: 2rem">System Statistics</h1>
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 2rem;
+        "
+      >
+        <h1 style="margin: 0">System Statistics</h1>
+        <div style="display: flex; align-items: center; gap: 0.5rem">
+          <span id="live-indicator" class="live-dot"></span>
+          <span style="font-size: 0.9rem; color: var(--text-secondary)"
+            >Live</span
+          >
+        </div>
+      </div>
 
       <div th:if="${stats}" id="stats-container">
         <section style="margin-bottom: 2rem">
@@ -113,7 +128,5 @@
         </section>
       </div>
     </main>
-
-    <script th:src="@{/js/stats-websocket.js}"></script>
   </body>
 </html>

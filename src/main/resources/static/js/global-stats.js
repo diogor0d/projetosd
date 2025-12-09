@@ -24,6 +24,7 @@
                 console.log('[Global Stats] 📊 Received message:', message.body);
                 const stats = JSON.parse(message.body);
                 updateGlobalStatsBar(stats);
+                updateStatsPage(stats);
             });
             
             console.log('[Global Stats] 📡 Subscribed to /topic/stats');
@@ -49,6 +50,7 @@
             .then(stats => {
                 console.log('[Global Stats] 📊 Initial stats received:', stats);
                 updateGlobalStatsBar(stats);
+                updateStatsPage(stats);
             })
             .catch(error => {
                 console.error('[Global Stats] ❌ Error fetching initial stats:', error);
@@ -75,6 +77,84 @@
         updateElement('global-total-pages', stats.totalIndexedPages);
         updateElement('global-queue-size', stats.urlQueueSize);
         updateElement('global-barrel-count', stats.barrelStats ? stats.barrelStats.length : 0);
+    }
+    
+    // Update the stats page if we're on it
+    function updateStatsPage(stats) {
+        // Check if we're on the stats page
+        const statsContainer = document.getElementById('stats-container');
+        if (!statsContainer) return;
+        
+        console.log('[Global Stats] Updating stats page with:', stats);
+        
+        // Update main stats
+        updateElement('total-pages', stats.totalIndexedPages);
+        updateElement('queue-size', stats.urlQueueSize);
+        updateElement('barrel-count', stats.barrelStats ? stats.barrelStats.length : 0);
+        
+        // Update connection indicator
+        const indicator = document.getElementById('live-indicator');
+        if (indicator) {
+            indicator.style.background = 'var(--success-color, #10b981)';
+            indicator.style.animation = 'pulse 2s infinite';
+        }
+        
+        // Update top searches
+        if (stats.topSearches && stats.topSearches.length > 0) {
+            updateTopSearches(stats.topSearches);
+        }
+        
+        // Update barrel stats
+        if (stats.barrelStats && stats.barrelStats.length > 0) {
+            updateBarrelStats(stats.barrelStats);
+        }
+    }
+    
+    // Update top searches list
+    function updateTopSearches(searches) {
+        const container = document.getElementById('top-searches');
+        if (!container) return;
+        
+        let html = '<ol style="padding-left: 1.5rem; color: var(--text-secondary)">';
+        searches.forEach(search => {
+            html += `<li style="margin-bottom: 0.5rem; color: var(--text-primary)">${escapeHtml(search)}</li>`;
+        });
+        html += '</ol>';
+        
+        container.innerHTML = html;
+    }
+    
+    // Update barrel statistics
+    function updateBarrelStats(barrels) {
+        const container = document.getElementById('barrel-stats');
+        if (!container) return;
+        
+        let html = '';
+        barrels.forEach(barrel => {
+            html += `
+                <div class="barrel-card">
+                    <h3 style="color: var(--accent)">${escapeHtml(barrel.barrelId)}</h3>
+                    <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.9rem;">
+                        <span>Pages: <strong>${barrel.indexSize}</strong></span>
+                        <span>Avg Latency: <strong>${barrel.avgResponseTime.toFixed(1)} ms</strong></span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    }
+    
+    // Escape HTML to prevent XSS
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return String(text).replace(/[&<>"']/g, m => map[m]);
     }
     
     // Update an element with animation
@@ -105,9 +185,10 @@
         }
     }
     
-    // Auto-connect when page loads
+    // Auto-connect when page loads (skip on stats page - it has its own WebSocket)
     document.addEventListener('DOMContentLoaded', function() {
         console.log('[Global Stats] 🚀 Page loaded, initializing...');
+        // Always connect - we handle both global bar and stats page now
         connect();
     });
     
