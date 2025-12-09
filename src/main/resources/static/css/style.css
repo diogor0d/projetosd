@@ -179,26 +179,14 @@ nav {
     content: '';
     position: absolute;
     top: 4px;
-    left: 4px;
-    width: calc(33.333% - 4px);
+    /* JS will set --pill-left/--pill-width for pixel-perfect alignment. Fallback values keep layout functional */
+    left: var(--pill-left, 4px);
+    width: var(--pill-width, calc((100% - 8px) / 3));
     height: calc(100% - 8px);
     background: var(--accent);
     border-radius: 20px;
-    transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    transition: left 0.18s cubic-bezier(0.4, 0.0, 0.2, 1), width 0.18s cubic-bezier(0.4, 0.0, 0.2, 1);
     z-index: 1;
-}
-
-/* Slide positions for each option */
-.page-mode-switch:has(.mode-option:nth-child(1) input[type="radio"]:checked)::before {
-    transform: translateX(0);
-}
-
-.page-mode-switch:has(.mode-option:nth-child(2) input[type="radio"]:checked)::before {
-    transform: translateX(100%);
-}
-
-.page-mode-switch:has(.mode-option:nth-child(3) input[type="radio"]:checked)::before {
-    transform: translateX(200%);
 }
 
 .nav-links a {
@@ -419,27 +407,14 @@ input:focus {
     content: '';
     position: absolute;
     top: 4px;
-    left: 4px;
-    width: calc(33.333% - 4px);
+    /* JS will set --pill-left/--pill-width for exact alignment on each switch */
+    left: var(--pill-left, 4px);
+    width: var(--pill-width, calc((100% - 8px) / 3));
     height: calc(100% - 8px);
     background: var(--accent);
     border-radius: 20px;
-    transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    transition: left 0.18s cubic-bezier(0.4, 0.0, 0.2, 1), width 0.18s cubic-bezier(0.4, 0.0, 0.2, 1);
     z-index: 1;
-}
-
-/* Slide positions for each option */
-.mode-option:nth-child(1) input[type="radio"]:checked ~ .search-mode-switch::before,
-.search-mode-switch:has(.mode-option:nth-child(1) input[type="radio"]:checked)::before {
-    transform: translateX(0);
-}
-
-.search-mode-switch:has(.mode-option:nth-child(2) input[type="radio"]:checked)::before {
-    transform: translateX(100%);
-}
-
-.search-mode-switch:has(.mode-option:nth-child(3) input[type="radio"]:checked)::before {
-    transform: translateX(200%);
 }
 
 /* --- HackerNews Dynamic Island --- */
