@@ -68,6 +68,77 @@ nav {
 
 .header-right { display: flex; align-items: center; gap: 1.5rem; }
 
+/* --- Page Search Bar (below header, above content) --- */
+.page-search-bar {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 0 2rem 0;
+}
+
+.page-search-form {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.page-search-input-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.page-search-input {
+    width: 100%;
+    padding: 0.875rem 3.5rem 0.875rem 1.25rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.page-search-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--bg-hover);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+}
+
+.page-search-btn {
+    position: absolute;
+    right: 0.75rem;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.page-search-btn:hover {
+    color: var(--accent);
+    transform: translateX(3px);
+}
+
+.page-mode-switch {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.page-switch-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
 .nav-links a {
     color: var(--text-secondary);
     text-decoration: none;

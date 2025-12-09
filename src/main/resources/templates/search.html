@@ -8,6 +8,43 @@
   </head>
   <body>
     <main>
+      <!-- Search Bar below header -->
+      <div class="page-search-bar">
+        <form id="page-search-form" th:action="@{/search}" method="get" class="page-search-form">
+          <div class="page-search-input-wrapper">
+            <input
+              type="text"
+              id="page-query-input"
+              name="q"
+              placeholder="Search..."
+              autocomplete="off"
+              class="page-search-input"
+            />
+            <button type="submit" class="page-search-btn">
+              ➝
+            </button>
+          </div>
+          <div class="page-mode-switch">
+            <span class="page-switch-label">Search</span>
+            <label class="switch">
+              <input type="checkbox" id="page-index-mode" />
+              <span class="slider"></span>
+            </label>
+            <span class="page-switch-label">Index URL</span>
+          </div>
+          <!-- Hidden field for returning to current search after indexing -->
+          <input type="hidden" id="page-return-query" name="returnQuery" th:value="${query}" />
+        </form>
+      </div>
+
+      <!-- Success/Error Messages -->
+      <div th:if="${success}" class="alert alert-success" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(129, 201, 149, 0.1); border: 1px solid var(--success); border-radius: 8px; color: var(--success);">
+        <span th:text="${success}"></span>
+      </div>
+      <div th:if="${error}" class="alert alert-error" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(242, 139, 130, 0.1); border: 1px solid var(--error); border-radius: 8px; color: var(--error);">
+        <span th:text="${error}"></span>
+      </div>
+
       <div class="search-options">
         <h2
           th:if="${hasResults}"
@@ -151,10 +188,39 @@
               container.style.opacity = "1";
               container.style.transform = "translateY(0)";
             });
-          }, 300);
 
-          // Prepare results data
-          const resultsData = searchResults.map((r) => ({
+            // Check if there are results
+            if (!searchResults || searchResults.length === 0) {
+              // No results - show message after brief loading
+              setTimeout(() => {
+                loadingPill.style.opacity = "0";
+                loadingPill.style.transform = "scale(0.95)";
+
+                setTimeout(() => {
+                  loadingPill.style.display = "none";
+                  const contentDiv = document.getElementById("ai-analysis-content");
+                  contentDiv.textContent = "";
+                  resultPill.style.display = "block";
+                  resultPill.style.opacity = "0";
+                  resultPill.style.transform = "translateY(-10px)";
+
+                  requestAnimationFrame(() => {
+                    resultPill.style.transition = "opacity 0.6s ease, transform 0.6s ease";
+                    resultPill.style.opacity = "1";
+                    resultPill.style.transform = "translateY(0)";
+                  });
+
+                  setTimeout(() => {
+                    contentDiv.style.color = "var(--error)";
+                    typeWriter("Not enough search results to generate an AI overview. Please try a different search query.", contentDiv, 5);
+                  }, 400);
+                }, 400);
+              }, 800);
+              return;
+            }
+
+            // Prepare results data
+            const resultsData = searchResults.map((r) => ({
             url: r.url,
             title: r.title,
             snippet: r.snippet,
@@ -199,7 +265,15 @@
 
                 // Start typewriter effect after pill is visible
                 setTimeout(() => {
-                  typeWriter(data.analysis, contentDiv, 5); // 5ms per character for speed
+                  // Check if response contains error or analysis
+                  const message = data.error || data.analysis || "Unable to generate AI analysis.";
+                  // Set color based on whether it's an error or successful analysis
+                  if (data.error) {
+                    contentDiv.style.color = "var(--error)";
+                  } else {
+                    contentDiv.style.color = "var(--text-primary)";
+                  }
+                  typeWriter(message, contentDiv, 5); // 5ms per character for speed
                 }, 400);
               }, 400);
             })
@@ -208,8 +282,9 @@
 
               setTimeout(() => {
                 loadingPill.style.display = "none";
-                document.getElementById("ai-analysis-content").textContent =
-                  "Erro ao gerar análise: " + error;
+                const contentDiv = document.getElementById("ai-analysis-content");
+                contentDiv.textContent = "Erro ao gerar análise: " + error;
+                contentDiv.style.color = "var(--error)";
                 resultPill.style.display = "block";
                 resultPill.style.opacity = "0";
 
@@ -219,6 +294,7 @@
                 });
               }, 400);
             });
+          }, 300);
         }
 
         // Typewriter effect with glowing cursor
@@ -250,6 +326,45 @@
           }
 
           type();
+        }
+
+        // Page search bar toggle functionality
+        const pageForm = document.getElementById('page-search-form');
+        const pageQueryInput = document.getElementById('page-query-input');
+        const pageIndexModeCheckbox = document.getElementById('page-index-mode');
+        const pageReturnQuery = document.getElementById('page-return-query');
+
+        if (pageForm && pageQueryInput && pageIndexModeCheckbox) {
+          pageIndexModeCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+              pageForm.action = '/index';
+              pageForm.method = 'post';
+              pageQueryInput.name = 'url';
+              pageQueryInput.placeholder = 'https://example.com';
+              // Keep returnQuery field so we can redirect back after indexing
+            } else {
+              pageForm.action = '/search';
+              pageForm.method = 'get';
+              pageQueryInput.name = 'q';
+              pageQueryInput.placeholder = 'Search...';
+              // Remove returnQuery from form submission in search mode
+              if (pageReturnQuery) {
+                pageReturnQuery.disabled = true;
+              }
+            }
+          });
+
+          // Initially disable returnQuery if in search mode
+          if (pageReturnQuery && !pageIndexModeCheckbox.checked) {
+            pageReturnQuery.disabled = true;
+          }
+
+          // Re-enable returnQuery when switching to index mode
+          pageIndexModeCheckbox.addEventListener('change', function() {
+            if (pageReturnQuery) {
+              pageReturnQuery.disabled = !this.checked;
+            }
+          });
         }
         /*]]>*/
       </script>

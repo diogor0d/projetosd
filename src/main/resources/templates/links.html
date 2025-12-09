@@ -1,25 +1,47 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html
+  xmlns:th="http://www.thymeleaf.org"
+  th:replace="~{fragments/layout :: layout(~{::title}, ~{::main})}"
+>
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Páginas que apontam para este URL | Googol</title>
-    <link rel="stylesheet" th:href="@{/css/style.css}" />
   </head>
   <body>
-    <div class="container">
-      <!-- cabeçalho -->
-      <header>
-        <nav>
-          <a th:href="@{/}" class="logo">Googol</a>
-          <div class="nav-links">
-            <a th:href="@{/}">Início</a>
-            <a th:href="@{/stats}">Estatísticas</a>
-          </div>
-        </nav>
-      </header>
+    <main>
+        <!-- Search Bar below header -->
+        <div class="page-search-bar">
+          <form id="page-search-form" th:action="@{/search}" method="get" class="page-search-form">
+            <div class="page-search-input-wrapper">
+              <input
+                type="text"
+                id="page-query-input"
+                name="q"
+                placeholder="Search..."
+                autocomplete="off"
+                class="page-search-input"
+              />
+              <button type="submit" class="page-search-btn">
+                ➝
+              </button>
+            </div>
+            <div class="page-mode-switch">
+              <span class="page-switch-label">Search</span>
+              <label class="switch">
+                <input type="checkbox" id="page-index-mode" />
+                <span class="slider"></span>
+              </label>
+              <span class="page-switch-label">Index URL</span>
+            </div>
+            <!-- Hidden field for returning to links page after indexing -->
+            <input type="hidden" id="page-return-url" name="returnUrl" th:value="${targetUrl}" />
+          </form>
+        </div>
 
-      <main>
+        <!-- Success/Error Messages -->
+        <div th:if="${success}" class="alert alert-success" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(129, 201, 149, 0.1); border: 1px solid var(--success); border-radius: 8px; color: var(--success);">
+          <span th:text="${success}"></span>
+        </div>
+
         <h1>🔗 Páginas que apontam para este URL</h1>
 
         <!-- URL de destino -->
@@ -67,13 +89,45 @@
             ← Voltar
           </button>
         </div>
-      </main>
 
-      <footer>
-        <p>&copy; 2025 Googol - Projeto SD</p>
-      </footer>
-    </div>
+      <script>
+        // Page search bar toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+          const pageForm = document.getElementById('page-search-form');
+          const pageQueryInput = document.getElementById('page-query-input');
+          const pageIndexModeCheckbox = document.getElementById('page-index-mode');
+          const pageReturnUrl = document.getElementById('page-return-url');
 
-    <script th:src="@{/js/app.js}"></script>
+          if (pageForm && pageQueryInput && pageIndexModeCheckbox) {
+            pageIndexModeCheckbox.addEventListener('change', function() {
+              if (this.checked) {
+                pageForm.action = '/index';
+                pageForm.method = 'post';
+                pageQueryInput.name = 'url';
+                pageQueryInput.placeholder = 'https://example.com';
+                // Keep returnUrl field for redirect back to links page
+                if (pageReturnUrl) {
+                  pageReturnUrl.disabled = false;
+                }
+              } else {
+                pageForm.action = '/search';
+                pageForm.method = 'get';
+                pageQueryInput.name = 'q';
+                pageQueryInput.placeholder = 'Search...';
+                // Disable returnUrl in search mode
+                if (pageReturnUrl) {
+                  pageReturnUrl.disabled = true;
+                }
+              }
+            });
+
+            // Initially disable returnUrl if in search mode
+            if (pageReturnUrl && !pageIndexModeCheckbox.checked) {
+              pageReturnUrl.disabled = true;
+            }
+          }
+        });
+      </script>
+    </main>
   </body>
 </html>
