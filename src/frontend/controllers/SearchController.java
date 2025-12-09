@@ -115,12 +115,19 @@ public class SearchController {
     @PostMapping("/index")
     public String indexURL(
             @RequestParam("url") String url,
+            @RequestParam(value = "returnQuery", required = false) String returnQuery,
+            @RequestParam(value = "returnUrl", required = false) String returnUrl,
             RedirectAttributes redirectAttributes) {
 
         try {
             // valida URL básico
             if (url == null || url.trim().isEmpty()) {
                 redirectAttributes.addFlashAttribute("error", "URL não pode estar vazio");
+                if (returnQuery != null && !returnQuery.trim().isEmpty()) {
+                    return "redirect:/search?q=" + returnQuery;
+                } else if (returnUrl != null && !returnUrl.trim().isEmpty()) {
+                    return "redirect:/links-to?url=" + returnUrl;
+                }
                 return "redirect:/";
             }
 
@@ -137,6 +144,14 @@ public class SearchController {
             System.err.println("[SearchController] Erro ao indexar: " + e.getMessage());
         }
 
+        // Redirect back to search page if returnQuery is provided
+        if (returnQuery != null && !returnQuery.trim().isEmpty()) {
+            return "redirect:/search?q=" + returnQuery;
+        }
+        // Redirect back to links page if returnUrl is provided
+        else if (returnUrl != null && !returnUrl.trim().isEmpty()) {
+            return "redirect:/links-to?url=" + returnUrl;
+        }
         return "redirect:/";
     }
 

@@ -39,12 +39,12 @@
               align-items: center;
             "
           >
-            <span class="switch-label">Search</span>
+            <span class="switch-label active" id="search-label">Search</span>
             <label class="switch">
               <input type="checkbox" id="index-mode" />
               <span class="slider"></span>
             </label>
-            <span class="switch-label">Index URL</span>
+            <span class="switch-label" id="index-label">Index URL</span>
           </div>
         </form>
 
@@ -100,6 +100,8 @@
         const form = document.getElementById("search-form");
         const queryInput = document.getElementById("query-input");
         const indexModeCheckbox = document.getElementById("index-mode");
+        const searchLabel = document.getElementById("search-label");
+        const indexLabel = document.getElementById("index-label");
 
         indexModeCheckbox.addEventListener("change", function () {
           if (this.checked) {
@@ -108,12 +110,18 @@
             queryInput.name = "url";
             queryInput.placeholder = "https://site.com/to/index";
             document.getElementById("submit-btn").innerHTML = "+";
+            // Toggle active class
+            if (searchLabel) searchLabel.classList.remove('active');
+            if (indexLabel) indexLabel.classList.add('active');
           } else {
             form.action = "/search";
             form.method = "get";
             queryInput.name = "q";
             queryInput.placeholder = "Search the web...";
             document.getElementById("submit-btn").innerHTML = "➝";
+            // Toggle active class
+            if (searchLabel) searchLabel.classList.add('active');
+            if (indexLabel) indexLabel.classList.remove('active');
           }
         });
       </script>

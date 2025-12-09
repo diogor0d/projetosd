@@ -42,7 +42,7 @@ sleep 3
 
 # inicia aplicação web
 echo -e "${BLUE}Iniciando Web Application...${NC}"
-echo -e "${GREEN}A aplicação web estará disponível em: http://localhost:8080${NC}"
+echo -e "${GREEN}A aplicação web estará disponível em: http://localhost:8081${NC}"
 echo ""
 echo "Pressiona Ctrl+C para parar todos os componentes"
 echo ""
