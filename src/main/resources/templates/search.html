@@ -56,12 +56,33 @@
               <button type="submit" class="btn-secondary">🤖 Análise IA</button>
             </form>
 
-            <!-- botão para indexar do Hacker News -->
-            <button onclick="toggleHNIndex()" class="btn-secondary">
-              📰 Indexar do HN
+            <!-- botão para indexar stories do Hacker News -->
+            <form th:action="@{/search}" method="get" style="display: inline">
+              <input type="hidden" name="q" th:value="${query}" />
+              <input type="hidden" name="page" th:value="${page}" />
+              <input type="hidden" name="indexHackerNews" value="true" />
+              <button type="submit" class="btn-secondary">
+                📰 Indexar do HN
+              </button>
+            </form>
+
+            <!-- botão para indexar do Hacker News (forma antiga) -->
+            <button
+              onclick="toggleHNIndex()"
+              class="btn-secondary"
+              style="display: none"
+            >
+              📰 Indexar do HN (Manual)
             </button>
           </div>
         </div>
+
+        <!-- mensagem de indexação do Hacker News -->
+        <div
+          th:if="${hnMessage}"
+          class="alert alert-success"
+          th:text="${hnMessage}"
+        ></div>
 
         <!-- formulário para indexar do Hacker News (oculto por padrão) -->
         <div id="hn-index-form" style="display: none" class="hn-index">
@@ -77,25 +98,6 @@
         <div th:if="${aiAnalysis}" class="ai-analysis">
           <h3>🤖 Análise Contextual</h3>
           <div class="analysis-content" th:text="${aiAnalysis}"></div>
-        </div>
-
-        <!-- stories do Hacker News -->
-        <div
-          th:if="${hackerNewsStories != null && !hackerNewsStories.isEmpty()}"
-          class="hn-stories"
-        >
-          <h3>📰 Relacionado no Hacker News</h3>
-          <div class="hn-list">
-            <div th:each="story : ${hackerNewsStories}" class="hn-story">
-              <a th:href="${story.url}" target="_blank" th:text="${story.title}"
-                >Story Title</a
-              >
-              <span class="hn-meta">
-                <span th:text="${story.score} + ' pontos'">0 pontos</span> ·
-                <span th:text="'por ' + ${story.by}">por user</span>
-              </span>
-            </div>
-          </div>
         </div>
 
         <!-- resultados da pesquisa -->

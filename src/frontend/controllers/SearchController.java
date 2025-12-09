@@ -57,6 +57,7 @@ public class SearchController {
             @RequestParam("q") String query,
             @RequestParam(value = "page", defaultValue = "1") int page,
             @RequestParam(value = "aiAnalysis", defaultValue = "false") boolean aiAnalysis,
+            @RequestParam(value = "indexHackerNews", defaultValue = "false") boolean indexHackerNews,
             Model model) {
 
         try {
@@ -74,12 +75,17 @@ public class SearchController {
                 model.addAttribute("aiAnalysis", analysis);
             }
 
-            // busca stories do Hacker News relacionadas
-            try {
-                List<HackerNewsService.HNStory> hnStories = hackerNewsService.getTopStoriesWithTerms(query, 5);
-                model.addAttribute("hackerNewsStories", hnStories);
-            } catch (Exception e) {
-                System.err.println("[SearchController] Erro ao buscar Hacker News: " + e.getMessage());
+            // indexa stories do Hacker News se solicitado
+            if (indexHackerNews) {
+                try {
+                    int indexed = hackerNewsService.indexTopStoriesWithTerms(query, 5);
+                    model.addAttribute("hnIndexed", indexed);
+                    model.addAttribute("hnMessage",
+                            indexed + " stories do Hacker News foram submetidas para indexação");
+                } catch (Exception e) {
+                    System.err.println("[SearchController] Erro ao indexar Hacker News: " + e.getMessage());
+                    model.addAttribute("hnMessage", "Erro ao indexar stories do Hacker News");
+                }
             }
 
         } catch (Exception e) {

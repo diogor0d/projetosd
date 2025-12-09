@@ -20,7 +20,7 @@ public class GatewayService {
     @Value("${googol.rmi.host:localhost}")
     private String rmiHost;
 
-    @Value("${googol.rmi.port:7000}")
+    @Value("${googol.rmi.port:1099}")
     private int rmiPort;
 
     @Value("${googol.rmi.name:Gateway}")

@@ -33,7 +33,7 @@ public class OpenAIService {
     @Value("${openrouter.model:meta-llama/llama-3.1-8b-instruct:free}")
     private String model;
 
-    @Value("${openrouter.site.url:http://localhost:8080}")
+    @Value("${openrouter.site.url:http://localhost:8081}")
     private String siteUrl;
 
     @Value("${openrouter.site.name:Googol Search Engine}")

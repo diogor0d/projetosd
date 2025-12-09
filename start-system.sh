@@ -3,7 +3,7 @@
 # script para inicializar o sistema completo Googol
 # executa Gateway, Barrels, Downloaders e Web Application
 
-echo "🚀 Iniciando sistema Googol..."
+echo "Iniciando sistema Googol..."
 
 # cores para output
 GREEN='\033[0;32m'
