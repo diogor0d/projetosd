@@ -159,10 +159,9 @@
         "
       >
         About <strong th:text="${totalCount}">0</strong> results
-        <span th:if="${totalPages > 1}">
-          (Page <span th:text="${page + 1}">1</span> of
-          <span th:text="${totalPages}">1</span>)
-        </span>
+        <span th:if="${searchTime != null}"
+          >(<span th:text="${searchTime}">0.00</span> seconds)</span
+        >
       </div>
 
       <!-- AI Analysis Loading/Result Container -->
@@ -236,32 +235,161 @@
         </p>
       </div>
 
+      <!-- Google-style Pagination -->
       <div
-        th:if="${hasResults}"
+        th:if="${hasResults && totalPages > 1}"
         class="pagination"
         style="
           display: flex;
           justify-content: center;
-          gap: 1rem;
+          align-items: center;
+          gap: 0.5rem;
           margin-top: 3rem;
+          flex-wrap: wrap;
         "
       >
+        <!-- Previous Button -->
         <a
           th:if="${page > 0}"
           th:href="@{/search(q=${query}, page=${page - 1})}"
-          class="btn-secondary"
+          class="pagination-nav"
+          style="
+            padding: 0.5rem 1rem;
+            color: var(--accent);
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.2s;
+          "
           >← Previous</a
         >
-        <span style="padding: 0.5rem"
-          >Page <span th:text="${page}">1</span></span
+        <span
+          th:unless="${page > 0}"
+          style="
+            padding: 0.5rem 1rem;
+            color: var(--text-disabled);
+            cursor: not-allowed;
+          "
+          >← Previous</span
         >
+
+        <!-- Page Numbers -->
+        <th:block
+          th:with="startPage=${page < 5 ? 0 : page - 4}, endPage=${page + 5 > totalPages ? totalPages - 1 : page + 4}"
+        >
+          <!-- First page + ellipsis if needed -->
+          <a
+            th:if="${startPage > 0}"
+            th:href="@{/search(q=${query}, page=0)}"
+            class="pagination-number"
+            style="
+              min-width: 2.5rem;
+              padding: 0.5rem;
+              text-align: center;
+              color: var(--text-primary);
+              text-decoration: none;
+              border-radius: 4px;
+              transition: background 0.2s;
+            "
+            >1</a
+          >
+          <span
+            th:if="${startPage > 1}"
+            style="color: var(--text-secondary); padding: 0.5rem"
+            >...</span
+          >
+
+          <!-- Page number range -->
+          <th:block th:each="i : ${#numbers.sequence(startPage, endPage)}">
+            <a
+              th:if="${i != page}"
+              th:href="@{/search(q=${query}, page=${i})}"
+              th:text="${i + 1}"
+              class="pagination-number"
+              style="
+                min-width: 2.5rem;
+                padding: 0.5rem;
+                text-align: center;
+                color: var(--text-primary);
+                text-decoration: none;
+                border-radius: 4px;
+                transition: background 0.2s;
+              "
+            ></a>
+            <span
+              th:if="${i == page}"
+              th:text="${i + 1}"
+              class="pagination-current"
+              style="
+                min-width: 2.5rem;
+                padding: 0.5rem;
+                text-align: center;
+                background: var(--accent);
+                color: var(--bg-app);
+                border-radius: 4px;
+                font-weight: 600;
+              "
+            ></span>
+          </th:block>
+
+          <!-- Ellipsis + last page if needed -->
+          <span
+            th:if="${endPage < totalPages - 2}"
+            style="color: var(--text-secondary); padding: 0.5rem"
+            >...</span
+          >
+          <a
+            th:if="${endPage < totalPages - 1}"
+            th:href="@{/search(q=${query}, page=${totalPages - 1})}"
+            th:text="${totalPages}"
+            class="pagination-number"
+            style="
+              min-width: 2.5rem;
+              padding: 0.5rem;
+              text-align: center;
+              color: var(--text-primary);
+              text-decoration: none;
+              border-radius: 4px;
+              transition: background 0.2s;
+            "
+          ></a>
+        </th:block>
+
+        <!-- Next Button -->
         <a
           th:if="${hasMoreResults}"
           th:href="@{/search(q=${query}, page=${page + 1})}"
-          class="btn-secondary"
+          class="pagination-nav"
+          style="
+            padding: 0.5rem 1rem;
+            color: var(--accent);
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.2s;
+          "
           >Next →</a
         >
+        <span
+          th:unless="${hasMoreResults}"
+          style="
+            padding: 0.5rem 1rem;
+            color: var(--text-disabled);
+            cursor: not-allowed;
+          "
+          >Next →</span
+        >
       </div>
+
+      <style>
+        .pagination-number:hover,
+        .pagination-nav:hover {
+          background: rgba(var(--accent-rgb), 0.1);
+        }
+
+        .pagination-number:active,
+        .pagination-nav:active {
+          transform: scale(0.95);
+        }
+      </style>
 
       <script th:inline="javascript">
         /*<![CDATA[*/

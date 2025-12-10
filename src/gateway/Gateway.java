@@ -301,7 +301,19 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
         String cacheKey = normalizedQuery + "_" + page;
         if (searchCache.containsKey(cacheKey)) {
             System.out.println("Cache hit for: " + query);
-            return searchCache.get(cacheKey);
+            SearchResponse cachedResponse = searchCache.get(cacheKey);
+
+            // Se o tempo de pesquisa for 0 (página nunca pesquisada), tenta obter da página
+            // 0
+            if (cachedResponse.getSearchTimeMs() == 0 && page > 0) {
+                String firstPageKey = normalizedQuery + "_0";
+                SearchResponse firstPage = searchCache.get(firstPageKey);
+                if (firstPage != null && firstPage.getSearchTimeMs() > 0) {
+                    cachedResponse.setSearchTimeMs(firstPage.getSearchTimeMs());
+                }
+            }
+
+            return cachedResponse;
         }
 
         // divide query em termos
@@ -321,6 +333,26 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
             // regista tempo de resposta para este barrel
             recordBarrelResponseTime(barrel, responseTime);
+
+            // Determina o tempo de pesquisa a usar:
+            // - Para página 0: usa o tempo real (primeira pesquisa faz todo o trabalho)
+            // - Para páginas 1+: usa o tempo da página 0 (se existir) pois o trabalho já
+            // foi feito
+            long searchTimeToUse = responseTime;
+
+            if (page > 0) {
+                // Tenta obter o tempo da primeira página do cache
+                String firstPageKey = normalizedQuery + "_0";
+                SearchResponse firstPage = searchCache.get(firstPageKey);
+                if (firstPage != null && firstPage.getSearchTimeMs() > 0) {
+                    // Usa o tempo da página 0 (que fez o trabalho real de TF-IDF)
+                    searchTimeToUse = firstPage.getSearchTimeMs();
+                }
+                // Se página 0 não está em cache, mantém o tempo atual (pode ser página 0 ainda
+                // não pesquisada)
+            }
+
+            response.setSearchTimeMs(searchTimeToUse);
 
             // armazena em cache
             searchCache.put(cacheKey, response);

@@ -466,9 +466,12 @@ public class GoogolClient {
             System.out.println(Colors.BOLD_CYAN + "║" + Colors.BOLD_WHITE + " Results for: " + Colors.BOLD_YELLOW
                     + query +
                     String.format("%" + (52 - query.length()) + "s", "") + Colors.BOLD_CYAN + "║" + Colors.RESET);
-            System.out.println(Colors.BOLD_CYAN + "║" + Colors.WHITE + " About " + Colors.BOLD_YELLOW + totalCount
-                    + Colors.WHITE + " results" +
-                    String.format("%" + (53 - String.valueOf(totalCount).length()) + "s", "") + Colors.BOLD_CYAN + "║"
+
+            // Format search time
+            String searchTime = String.format("%.2f", searchResponse.getSearchTimeMs() / 1000.0);
+            String resultsLine = " About " + totalCount + " results (" + searchTime + " seconds)";
+            System.out.println(Colors.BOLD_CYAN + "║" + Colors.WHITE + resultsLine +
+                    String.format("%" + (66 - resultsLine.length()) + "s", "") + Colors.BOLD_CYAN + "║"
                     + Colors.RESET);
             System.out.println(Colors.BOLD_CYAN + "║" + Colors.WHITE + " Page " + (currentPage + 1) + " of "
                     + searchResponse.getTotalPages() +

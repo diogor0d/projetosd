@@ -13,6 +13,7 @@ public class SearchResponse implements Serializable {
     private int totalCount;
     private int page;
     private int pageSize;
+    private long searchTimeMs;
 
     public SearchResponse() {
         this.pageSize = 10;
@@ -55,6 +56,14 @@ public class SearchResponse implements Serializable {
 
     public void setPageSize(int pageSize) {
         this.pageSize = pageSize;
+    }
+
+    public long getSearchTimeMs() {
+        return searchTimeMs;
+    }
+
+    public void setSearchTimeMs(long searchTimeMs) {
+        this.searchTimeMs = searchTimeMs;
     }
 
     public int getTotalPages() {

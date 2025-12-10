@@ -74,6 +74,7 @@ public class SearchController {
             model.addAttribute("totalPages", searchResponse.getTotalPages());
             model.addAttribute("hasResults", searchResponse.hasResults());
             model.addAttribute("hasMoreResults", searchResponse.hasMorePages());
+            model.addAttribute("searchTime", String.format("%.2f", searchResponse.getSearchTimeMs() / 1000.0));
 
             // gera análise com IA se solicitado e há resultados
             if (aiAnalysis && searchResponse.hasResults()) {
