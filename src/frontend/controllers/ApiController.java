@@ -161,7 +161,7 @@ public class ApiController {
                 return ResponseEntity.badRequest()
                         .body(Map.of("error", "Query não pode estar vazia"));
             }
-            
+
             String suggestion = spellCheckService.getSuggestion(query);
 
             Map<String, Object> response = new HashMap<>();

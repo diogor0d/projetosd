@@ -51,8 +51,8 @@ public class SpellCheckService {
                     "5. If the query looks correct, respond ONLY with: CORRECT\n" +
                     "6. If you find errors, respond ONLY with the corrected text - NO arrows, NO explanations, NO original text\n\n" +
                     "WRONG response format:\n" +
-                    "- 'gui rosmaninho' -> 'gui rosemaninho' ❌\n" +
-                    "- gui rosmaninho -> gui rosemaninho ❌\n\n" +
+                    "- 'gui rosmaninho' -> 'gui rosemaninho'\n" +
+                    "- gui rosmaninho -> gui rosemaninho\n\n" +
                     "CORRECT response format:\n" +
                     "- CORRECT (if no errors)\n" +
                     "- computer science (if correcting 'compter science')\n\n" +
