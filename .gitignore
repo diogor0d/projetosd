@@ -74,3 +74,4 @@ spring-boot-devtools.properties
 data/barrel_1_index.json
 data/barrel_2_index.json
 data/barrel_1_index.json
+/ssl-certificate
