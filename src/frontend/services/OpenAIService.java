@@ -153,4 +153,61 @@ public class OpenAIService {
         String key = getApiKey();
         return key != null && !key.isEmpty();
     }
+
+    /**
+     * Método genérico para chamar a API do OpenRouter
+     *
+     * @param prompt o prompt para enviar à IA
+     * @param maxTokens número máximo de tokens na resposta
+     * @return resposta da IA
+     */
+    public String callOpenAI(String prompt, int maxTokens) {
+        String key = getApiKey();
+        if (key == null || key.isEmpty()) {
+            return null;
+        }
+
+        try {
+            // constrói o pedido JSON para a API OpenRouter
+            JsonObject requestBody = new JsonObject();
+            requestBody.addProperty("model", model);
+
+            JsonArray messages = new JsonArray();
+            JsonObject message = new JsonObject();
+            message.addProperty("role", "user");
+            message.addProperty("content", prompt);
+            messages.add(message);
+
+            requestBody.add("messages", messages);
+            requestBody.addProperty("max_tokens", maxTokens);
+            requestBody.addProperty("temperature", 0.3); // Lower temperature for more deterministic responses
+
+            // configura headers com autenticação e metadata do OpenRouter
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(key);
+            headers.set("HTTP-Referer", siteUrl);
+            headers.set("X-Title", siteName);
+
+            HttpEntity<String> request = new HttpEntity<>(gson.toJson(requestBody), headers);
+
+            // faz o pedido à API
+            String response = restTemplate.postForObject(OPENROUTER_API_URL, request, String.class);
+
+            // extrai a resposta do JSON
+            JsonObject responseJson = gson.fromJson(response, JsonObject.class);
+            JsonArray choices = responseJson.getAsJsonArray("choices");
+            if (choices != null && choices.size() > 0) {
+                JsonObject firstChoice = choices.get(0).getAsJsonObject();
+                JsonObject messageObj = firstChoice.getAsJsonObject("message");
+                return messageObj.get("content").getAsString().trim();
+            }
+
+            return null;
+
+        } catch (Exception e) {
+            System.err.println("[OpenAIService] Error calling API: " + e.getMessage());
+            return null;
+        }
+    }
 }

@@ -3,6 +3,7 @@ package frontend.controllers;
 import frontend.services.GatewayService;
 import frontend.services.StatsUpdateService;
 import frontend.services.OpenAIService;
+import frontend.services.SpellCheckService;
 import common.SearchResult;
 import common.SystemStats;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 /**
  * controlador REST API para acesso programático
@@ -28,6 +30,9 @@ public class ApiController {
 
     @Autowired
     private OpenAIService openAIService;
+
+    @Autowired
+    private SpellCheckService spellCheckService;
 
     /**
      * endpoint para pesquisa via API
@@ -143,6 +148,42 @@ public class ApiController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * endpoint assíncrono para verificação ortográfica
+     */
+    @GetMapping("/spell-check")
+    public ResponseEntity<?> spellCheck(@RequestParam("q") String query) {
+        try {
+            if (query == null || query.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Query não pode estar vazia"));
+            }
+            
+            String suggestion = spellCheckService.getSuggestion(query);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("query", query);
+
+            if (suggestion != null && !suggestion.equalsIgnoreCase(query)) {
+                response.put("hasSuggestion", true);
+                response.put("suggestion", suggestion);
+            } else {
+                response.put("hasSuggestion", false);
+                response.put("suggestion", null);
+            }
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            System.err.println("[ApiController] Erro no spell check: " + e.getMessage());
+            return ResponseEntity.ok(Map.of(
+                    "query", query,
+                    "hasSuggestion", false,
+                    "suggestion", null,
+                    "error", e.getMessage()));
         }
     }
 

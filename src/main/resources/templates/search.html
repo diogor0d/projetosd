@@ -51,6 +51,34 @@
         </form>
       </div>
 
+      <!-- Spell Check Suggestion (loaded asynchronously) -->
+      <div
+        id="spell-suggestion-container"
+        class="spell-suggestion"
+        style="
+          margin: -0.5rem 0 1.5rem 0;
+          padding: 0.75rem 0;
+          text-align: left;
+          font-size: 0.95rem;
+          color: var(--text-secondary);
+          display: none;
+        "
+      >
+        <span>Did you mean: </span>
+        <a
+          id="spell-suggestion-link"
+          href="#"
+          class="spell-suggestion-link"
+          style="
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+          "
+        ></a>
+        <span>?</span>
+      </div>
+
       <!-- Success/Error Messages -->
       <div
         th:if="${success}"
@@ -477,6 +505,36 @@
           if (pageReturnQuery) {
             pageReturnQuery.disabled = true;
           }
+        }
+
+        // Async spell check - only on first page
+        const currentPage = /*[[${page}]]*/ 0;
+        if (currentPage === 0 && searchQuery) {
+          checkSpelling(searchQuery);
+        }
+
+        function checkSpelling(query) {
+          // Call the spell check API asynchronously
+          fetch(`/api/spell-check?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+              if (data.hasSuggestion && data.suggestion) {
+                // Show the suggestion
+                const container = document.getElementById('spell-suggestion-container');
+                const link = document.getElementById('spell-suggestion-link');
+
+                link.textContent = data.suggestion;
+                link.href = `/search?q=${encodeURIComponent(data.suggestion)}`;
+
+                container.style.display = 'block';
+
+                console.log('[SpellCheck] Suggestion displayed:', data.suggestion);
+              }
+            })
+            .catch(error => {
+              console.error('[SpellCheck] Error:', error);
+              // Fail silently - spell check is non-critical
+            });
         }
         /*]]>*/
       </script>

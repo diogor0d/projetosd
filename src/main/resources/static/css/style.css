@@ -654,6 +654,31 @@ input:focus {
 }
 
 /* --- Search Results --- */
+.spell-suggestion {
+    animation: fadeIn 0.3s ease-in;
+}
+
+.spell-suggestion-link {
+    transition: all 0.2s ease;
+    border-bottom: 1px solid transparent;
+}
+
+.spell-suggestion-link:hover {
+    color: var(--accent-hover) !important;
+    border-bottom-color: var(--accent-hover);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .result-item {
     margin-bottom: 2rem;
     padding-bottom: 1rem;
