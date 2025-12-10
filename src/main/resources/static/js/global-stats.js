@@ -136,7 +136,7 @@
                     <h3 style="color: var(--accent)">${escapeHtml(barrel.barrelId)}</h3>
                     <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.9rem;">
                         <span>Pages: <strong>${barrel.indexSize}</strong></span>
-                        <span>Avg Latency: <strong>${barrel.avgResponseTime.toFixed(1)} ms</strong></span>
+                        <span>Avg Latency: <strong>${(barrel.avgResponseTime / 100).toFixed(1)} ds</strong></span>
                     </div>
                 </div>
             `;

@@ -88,7 +88,7 @@
                   <span
                     >Avg Latency:
                     <strong
-                      th:text="${#numbers.formatDecimal(barrel.avgResponseTime, 1, 1)} + ' ms'"
+                      th:text="${#numbers.formatDecimal(barrel.avgResponseTime / 100, 1, 1)} + ' ds'"
                     ></strong
                   ></span>
                 </div>

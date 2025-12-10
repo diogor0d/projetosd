@@ -142,7 +142,7 @@
                         </p>
                         <p>
                             <strong>Tempo médio de resposta:</strong> 
-                            <span>${barrel.avgResponseTime.toFixed(1)} ms</span>
+                            <span>${(barrel.avgResponseTime / 100).toFixed(1)} ds</span>
                         </p>
                     </div>
                 </div>
