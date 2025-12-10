@@ -208,7 +208,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     }
 
     @Override
-    public List<SearchResult> search(Set<String> terms, int page) throws RemoteException {
+    public SearchResponse search(Set<String> terms, int page) throws RemoteException {
         // aguarda sincronizacao completa antes de servir pesquisas
         while (isSyncing) {
             System.out.println("[" + barrelId + "] Search blocked: synchronization in progress...");
@@ -229,7 +229,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         // se todos os termos eram stopwords, retorna resultados vazios
         if (normalizedTerms.isEmpty()) {
             System.out.println("[" + barrelId + "] Search query contained only stopwords");
-            return new ArrayList<>();
+            return new SearchResponse(new ArrayList<>(), 0, page);
         }
 
         // encontra Document IDs que contem todos os termos
@@ -240,7 +240,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
             if (docIdsForTerm == null || docIdsForTerm.isEmpty()) {
                 // se algum termo nao existe, nao ha resultados
-                return new ArrayList<>();
+                return new SearchResponse(new ArrayList<>(), 0, page);
             }
 
             if (resultDocIds == null) {
@@ -251,7 +251,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         }
 
         if (resultDocIds == null || resultDocIds.isEmpty()) {
-            return new ArrayList<>();
+            return new SearchResponse(new ArrayList<>(), 0, page);
         }
 
         // total de documentos para calculo de IDF
@@ -285,16 +285,21 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                 })
                 .collect(Collectors.toList());
 
+        // Armazena contagem total antes da paginação
+        int totalCount = results.size();
+
         // paginacao (10 resultados por pagina)
         int startIdx = page * 10;
         int endIdx = Math.min(startIdx + 10, results.size());
 
         if (startIdx >= results.size()) {
-            return new ArrayList<>();
+            return new SearchResponse(new ArrayList<>(), totalCount, page);
         }
 
         // cria novo ArrayList do subList para garantir que serializacao RMI funciona
-        return new ArrayList<>(results.subList(startIdx, endIdx));
+        List<SearchResult> paginatedResults = new ArrayList<>(results.subList(startIdx, endIdx));
+
+        return new SearchResponse(paginatedResults, totalCount, page);
     }
 
     /**

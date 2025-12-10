@@ -21,8 +21,9 @@ public interface IGateway extends Remote {
      * 
      * @param query String com os termos de pesquisa
      * @param page  Número da página de resultados (grupos de 10)
+     * @return SearchResponse contendo resultados e contagem total
      */
-    List<SearchResult> search(String query, int page) throws RemoteException;
+    SearchResponse search(String query, int page) throws RemoteException;
 
     /**
      * Obtém páginas que apontam para um URL específico

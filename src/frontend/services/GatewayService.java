@@ -80,7 +80,7 @@ public class GatewayService {
     /**
      * realiza uma pesquisa retornando resultados paginados
      */
-    public List<SearchResult> search(String query, int page) throws RemoteException {
+    public SearchResponse search(String query, int page) throws RemoteException {
         ensureConnected();
         return gateway.search(query, page);
     }

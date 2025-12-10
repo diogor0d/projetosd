@@ -149,6 +149,22 @@
         </button>
       </div>
 
+      <!-- Results Count -->
+      <div
+        th:if="${totalCount != null && totalCount > 0}"
+        style="
+          margin-bottom: 1rem;
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+        "
+      >
+        About <strong th:text="${totalCount}">0</strong> results
+        <span th:if="${totalPages > 1}">
+          (Page <span th:text="${page + 1}">1</span> of
+          <span th:text="${totalPages}">1</span>)
+        </span>
+      </div>
+
       <!-- AI Analysis Loading/Result Container -->
       <div id="ai-analysis-container" style="display: none">
         <!-- Loading State -->
@@ -516,23 +532,28 @@
         function checkSpelling(query) {
           // Call the spell check API asynchronously
           fetch(`/api/spell-check?q=${encodeURIComponent(query)}`)
-            .then(response => response.json())
-            .then(data => {
+            .then((response) => response.json())
+            .then((data) => {
               if (data.hasSuggestion && data.suggestion) {
                 // Show the suggestion
-                const container = document.getElementById('spell-suggestion-container');
-                const link = document.getElementById('spell-suggestion-link');
+                const container = document.getElementById(
+                  "spell-suggestion-container"
+                );
+                const link = document.getElementById("spell-suggestion-link");
 
                 link.textContent = data.suggestion;
                 link.href = `/search?q=${encodeURIComponent(data.suggestion)}`;
 
-                container.style.display = 'block';
+                container.style.display = "block";
 
-                console.log('[SpellCheck] Suggestion displayed:', data.suggestion);
+                console.log(
+                  "[SpellCheck] Suggestion displayed:",
+                  data.suggestion
+                );
               }
             })
-            .catch(error => {
-              console.error('[SpellCheck] Error:', error);
+            .catch((error) => {
+              console.error("[SpellCheck] Error:", error);
               // Fail silently - spell check is non-critical
             });
         }

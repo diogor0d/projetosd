@@ -24,7 +24,7 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
     private BarrelRegistry barrelRegistry; // registo para suporte multicast
 
     // cache de resultados de pesquisa (LRU com limite de tamanho)
-    private Map<String, List<SearchResult>> searchCache;
+    private Map<String, SearchResponse> searchCache;
     private static int SEARCH_CACHE_SIZE = 1000; // mantem as 1000 pesquisas mais populares
 
     // rastreio de URLs visitados usando Bloom filter (eficiente em espaco)
@@ -58,9 +58,9 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
         // inicializa cache de pesquisa com eviction LRU
         this.searchCache = Collections.synchronizedMap(
-                new LinkedHashMap<String, List<SearchResult>>(SEARCH_CACHE_SIZE + 1, 0.75f, true) {
+                new LinkedHashMap<String, SearchResponse>(SEARCH_CACHE_SIZE + 1, 0.75f, true) {
                     @Override
-                    protected boolean removeEldestEntry(Map.Entry<String, List<SearchResult>> eldest) {
+                    protected boolean removeEldestEntry(Map.Entry<String, SearchResponse> eldest) {
                         return size() > SEARCH_CACHE_SIZE;
                     }
                 });
@@ -284,7 +284,7 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
     }
 
     @Override
-    public List<SearchResult> search(String query, int page) throws RemoteException {
+    public SearchResponse search(String query, int page) throws RemoteException {
         // normaliza query
         String normalizedQuery = query.toLowerCase().trim();
 
@@ -316,16 +316,16 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
 
         try {
             long startTime = System.currentTimeMillis();
-            List<SearchResult> results = barrel.search(terms, page);
+            SearchResponse response = barrel.search(terms, page);
             long responseTime = System.currentTimeMillis() - startTime;
 
             // regista tempo de resposta para este barrel
             recordBarrelResponseTime(barrel, responseTime);
 
             // armazena em cache
-            searchCache.put(cacheKey, results);
+            searchCache.put(cacheKey, response);
 
-            return results;
+            return response;
 
         } catch (RemoteException e) {
             System.err.println("Error searching on barrel: " + e.getMessage());

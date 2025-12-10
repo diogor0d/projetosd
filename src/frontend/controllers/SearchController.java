@@ -5,6 +5,7 @@ import frontend.services.HackerNewsService;
 import frontend.services.OpenAIService;
 import frontend.services.StatsUpdateService;
 import common.SearchResult;
+import common.SearchResponse;
 import common.SystemStats;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -63,16 +64,19 @@ public class SearchController {
 
         try {
             // realiza pesquisa via RMI
-            List<SearchResult> results = gatewayService.search(query, page);
+            SearchResponse searchResponse = gatewayService.search(query, page);
+            List<SearchResult> results = searchResponse.getResults();
 
             model.addAttribute("query", query);
             model.addAttribute("results", results);
             model.addAttribute("page", page);
-            model.addAttribute("hasResults", results != null && !results.isEmpty());
-            model.addAttribute("hasMoreResults", results != null && results.size() == 10);
+            model.addAttribute("totalCount", searchResponse.getTotalCount());
+            model.addAttribute("totalPages", searchResponse.getTotalPages());
+            model.addAttribute("hasResults", searchResponse.hasResults());
+            model.addAttribute("hasMoreResults", searchResponse.hasMorePages());
 
             // gera análise com IA se solicitado e há resultados
-            if (aiAnalysis && results != null && !results.isEmpty()) {
+            if (aiAnalysis && searchResponse.hasResults()) {
                 System.out.println("[SearchController] AI Analysis solicitado para query: " + query);
                 if (openAIService.isAvailable()) {
                     System.out.println("[SearchController] OpenAI service está disponível");

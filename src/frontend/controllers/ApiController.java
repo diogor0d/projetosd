@@ -43,11 +43,13 @@ public class ApiController {
             @RequestParam(value = "page", defaultValue = "1") int page) {
 
         try {
-            List<SearchResult> results = gatewayService.search(query, page);
+            common.SearchResponse searchResponse = gatewayService.search(query, page);
             return ResponseEntity.ok(Map.of(
                     "query", query,
                     "page", page,
-                    "results", results));
+                    "totalCount", searchResponse.getTotalCount(),
+                    "totalPages", searchResponse.getTotalPages(),
+                    "results", searchResponse.getResults()));
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", e.getMessage()));

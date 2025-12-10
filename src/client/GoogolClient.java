@@ -409,9 +409,9 @@ public class GoogolClient {
 
             System.out.println(Colors.YELLOW + "⏳ Searching..." + Colors.RESET);
 
-            List<SearchResult> results;
+            SearchResponse searchResponse;
             try {
-                results = executeWithReconnect(gw -> gw.search(query, page));
+                searchResponse = executeWithReconnect(gw -> gw.search(query, page));
             } catch (RemoteException e) {
                 String errorMsg = e.getMessage();
                 if (errorMsg != null && errorMsg.contains("No active barrels")) {
@@ -435,6 +435,9 @@ public class GoogolClient {
                 }
                 throw e;
             }
+
+            List<SearchResult> results = searchResponse.getResults();
+            int totalCount = searchResponse.getTotalCount();
 
             clearScreen();
 
@@ -463,8 +466,15 @@ public class GoogolClient {
             System.out.println(Colors.BOLD_CYAN + "║" + Colors.BOLD_WHITE + " Results for: " + Colors.BOLD_YELLOW
                     + query +
                     String.format("%" + (52 - query.length()) + "s", "") + Colors.BOLD_CYAN + "║" + Colors.RESET);
-            System.out.println(Colors.BOLD_CYAN + "║" + Colors.WHITE + " Page " + (currentPage + 1) +
-                    String.format("%" + 60 + "s", "") + Colors.BOLD_CYAN + "║" + Colors.RESET);
+            System.out.println(Colors.BOLD_CYAN + "║" + Colors.WHITE + " About " + Colors.BOLD_YELLOW + totalCount
+                    + Colors.WHITE + " results" +
+                    String.format("%" + (53 - String.valueOf(totalCount).length()) + "s", "") + Colors.BOLD_CYAN + "║"
+                    + Colors.RESET);
+            System.out.println(Colors.BOLD_CYAN + "║" + Colors.WHITE + " Page " + (currentPage + 1) + " of "
+                    + searchResponse.getTotalPages() +
+                    String.format("%" + (56 - String.valueOf(currentPage + 1).length()
+                            - String.valueOf(searchResponse.getTotalPages()).length()) + "s", "")
+                    + Colors.BOLD_CYAN + "║" + Colors.RESET);
             System.out.println(Colors.BOLD_CYAN
                     + "╚═══════════════════════════════════════════════════════════════════╝" + Colors.RESET);
 

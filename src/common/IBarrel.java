@@ -20,9 +20,9 @@ public interface IBarrel extends Remote {
      * 
      * @param terms Termos de pesquisa
      * @param page  Número da página (grupos de 10)
-     * @return Lista de resultados ordenados por relevância
+     * @return SearchResponse contendo resultados e contagem total
      */
-    List<SearchResult> search(Set<String> terms, int page) throws RemoteException;
+    SearchResponse search(Set<String> terms, int page) throws RemoteException;
 
     /**
      * Obtém lista de páginas que apontam para um URL específico
