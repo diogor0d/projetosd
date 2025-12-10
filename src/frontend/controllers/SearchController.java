@@ -69,6 +69,7 @@ public class SearchController {
             model.addAttribute("results", results);
             model.addAttribute("page", page);
             model.addAttribute("hasResults", results != null && !results.isEmpty());
+            model.addAttribute("hasMoreResults", results != null && results.size() == 10);
 
             // gera análise com IA se solicitado e há resultados
             if (aiAnalysis && results != null && !results.isEmpty()) {
