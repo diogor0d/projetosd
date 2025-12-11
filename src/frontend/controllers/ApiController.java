@@ -5,8 +5,6 @@ import frontend.services.StatsUpdateService;
 import frontend.services.OpenAIService;
 import frontend.services.SpellCheckService;
 import frontend.services.HackerNewsService;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import common.SearchResult;
 import common.SystemStats;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -124,35 +122,6 @@ public class ApiController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", e.getMessage()));
-        }
-    }
-
-    /**
-     * Proxy endpoint: retorna o JSON bruto de topstories do Hacker News
-     */
-    @GetMapping("/hackernews/raw/topstories")
-    public ResponseEntity<?> proxyTopStories() {
-        try {
-            com.google.gson.JsonArray arr = hackerNewsService.getTopStoriesRaw();
-            return ResponseEntity.ok(arr);
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
-        }
-    }
-
-    /**
-     * Proxy endpoint: retorna o JSON bruto de um item do Hacker News dado o id
-     */
-    @GetMapping("/hackernews/raw/item/{id}")
-    public ResponseEntity<?> proxyItem(@PathVariable("id") int id) {
-        try {
-            com.google.gson.JsonObject obj = hackerNewsService.getItemRaw(id);
-            if (obj == null) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(obj);
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }
 

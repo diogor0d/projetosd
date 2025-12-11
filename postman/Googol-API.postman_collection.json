@@ -15,8 +15,8 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:8081/api/search?q=java&page=0",
-							"protocol": "http",
+							"raw": "https://localhost:8081/api/search?q=java&page=0",
+							"protocol": "https",
 							"host": [
 								"localhost"
 							],
@@ -48,8 +48,8 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:8081/api/search?q=distributed systems&page=0",
-							"protocol": "http",
+							"raw": "https://localhost:8081/api/search?q=distributed systems&page=0",
+							"protocol": "https",
 							"host": [
 								"localhost"
 							],
@@ -94,8 +94,8 @@
 							"raw": "{\n    \"url\": \"https://en.wikipedia.org/wiki/Distributed_computing\"\n}"
 						},
 						"url": {
-							"raw": "http://localhost:8081/api/index",
-							"protocol": "http",
+							"raw": "https://localhost:8081/api/index",
+							"protocol": "https",
 							"host": [
 								"localhost"
 							],
@@ -137,8 +137,8 @@
 							]
 						},
 						"url": {
-							"raw": "http://localhost:8081/index-hackernews",
-							"protocol": "http",
+							"raw": "https://localhost:8081/index-hackernews",
+							"protocol": "https",
 							"host": [
 								"localhost"
 							],
@@ -163,8 +163,8 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:8081/api/hackernews/stories?query=python&maxStories=10",
-							"protocol": "http",
+							"raw": "https://localhost:8081/api/hackernews/stories?query=python&maxStories=10",
+							"protocol": "https",
 							"host": [
 								"localhost"
 							],
@@ -206,8 +206,8 @@
 							"raw": "{\n    \"query\": \"machine learning\",\n    \"maxUrls\": 15\n}"
 						},
 						"url": {
-							"raw": "http://localhost:8081/api/hackernews/index",
-							"protocol": "http",
+							"raw": "https://localhost:8081/api/hackernews/index",
+							"protocol": "https",
 							"host": [
 								"localhost"
 							],
@@ -234,8 +234,8 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:8081/api/stats",
-							"protocol": "http",
+							"raw": "https://localhost:8081/api/stats",
+							"protocol": "https",
 							"host": [
 								"localhost"
 							],
@@ -261,8 +261,8 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:8081/api/links-to?url=https://example.com",
-							"protocol": "http",
+							"raw": "https://localhost:8081/api/links-to?url=https://example.com",
+							"protocol": "https",
 							"host": [
 								"localhost"
 							],
@@ -304,8 +304,8 @@
 							"raw": "{\n    \"query\": \"machine learning\",\n    \"results\": [\n        {\n            \"url\": \"https://example.com/ml-intro\",\n            \"title\": \"Introduction to Machine Learning\",\n            \"snippet\": \"Machine learning is a subset of artificial intelligence...\"\n        },\n        {\n            \"url\": \"https://example.com/ml-algorithms\",\n            \"title\": \"Common ML Algorithms\",\n            \"snippet\": \"This article covers the most popular machine learning algorithms...\"\n        }\n    ]\n}"
 						},
 						"url": {
-							"raw": "http://localhost:8081/api/ai-analysis",
-							"protocol": "http",
+							"raw": "https://localhost:8081/api/ai-analysis",
+							"protocol": "https",
 							"host": [
 								"localhost"
 							],
@@ -325,8 +325,8 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:8081/api/spell-check?q=machne learning",
-							"protocol": "http",
+							"raw": "https://localhost:8081/api/spell-check?q=machne learning",
+							"protocol": "https",
 							"host": [
 								"localhost"
 							],

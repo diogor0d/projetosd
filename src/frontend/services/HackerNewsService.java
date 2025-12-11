@@ -145,7 +145,8 @@ public class HackerNewsService {
                     }
                 }
 
-                System.out.println("[HackerNewsService] Indexação concluída: " + indexed + " URLs de " + stories.size()
+                System.out.println("[HackerNewsService] Submissão para indexação concluída: " + indexed + " URLs de "
+                        + stories.size()
                         + " stories");
                 return indexed;
             } catch (Exception e) {
