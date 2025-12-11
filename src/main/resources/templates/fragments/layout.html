@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title th:replace="${title}">Googol</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/googol_favicon.svg}" />
     <link rel="stylesheet" th:href="@{/css/style.css}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,7 +16,9 @@
   <body>
     <header th:unless="${activePage == 'home'}">
       <nav th:class="${activePage == 'stats'} ? 'stats-nav' : ''">
-        <a th:href="@{/}" class="logo">Googol</a>
+        <a th:href="@{/}" class="logo">
+          <img th:src="@{/googol_logo.svg}" alt="Googol" style="height: 32px; vertical-align: middle;" />
+        </a>
         <div class="header-right" th:unless="${activePage == 'stats'}">
           <a th:href="@{/stats}" class="stats-bar-link">
             <div class="stats-bar">
