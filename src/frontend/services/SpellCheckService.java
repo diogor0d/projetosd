@@ -42,27 +42,16 @@ public class SpellCheckService {
      */
     private String getAISuggestion(String query) {
         try {
-            String prompt = "You are a spelling checker for a Portuguese search engine.\n\n" +
-                    "CRITICAL RULES:\n" +
-                    "1. NEVER change proper nouns, names, surnames, or capitalized words\n" +
-                    "2. If you see names like 'João', 'Maria', 'Silva', 'Rosmaninho', etc. - DO NOT CHANGE THEM\n" +
-                    "3. Only fix obvious misspellings in common words\n" +
-                    "4. Prefer Portuguese spellings over English when ambiguous\n" +
-                    "5. If the query looks correct, respond ONLY with: CORRECT\n" +
-                    "6. If you find errors, respond ONLY with the corrected text - NO arrows, NO explanations, NO original text\n\n" +
-                    "WRONG response format:\n" +
-                    "- 'gui rosmaninho' -> 'gui rosemaninho'\n" +
-                    "- gui rosmaninho -> gui rosemaninho\n\n" +
-                    "CORRECT response format:\n" +
-                    "- CORRECT (if no errors)\n" +
-                    "- computer science (if correcting 'compter science')\n\n" +
+            String prompt = "Spell checker for Portuguese search engine. Rules:\n" +
+                    "- NEVER change proper nouns/names/capitalized words\n" +
+                    "- Only fix obvious misspellings in common words\n" +
+                    "- Prefer Portuguese over English\n" +
+                    "- If correct: reply CORRECT\n" +
+                    "- If wrong: reply ONLY corrected text (no arrows/explanations)\n\n" +
                     "Examples:\n" +
-                    "Query: 'João Silva' → Response: CORRECT\n" +
-                    "Query: 'gui rosmaninho' → Response: CORRECT\n" +
-                    "Query: 'Maria Santos' → Response: CORRECT\n" +
-                    "Query: 'compter science' → Response: computer science\n" +
-                    "Query: 'coimb' → Response: coimbra\n" +
-                    "Query: 'tecnologia' → Response: CORRECT\n\n" +
+                    "'João Silva' → CORRECT\n" +
+                    "'compter science' → computer science\n" +
+                    "'coimb' → coimbra\n\n" +
                     "Query: \"" + query + "\"\n" +
                     "Response:";
 

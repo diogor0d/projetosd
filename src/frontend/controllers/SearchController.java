@@ -5,6 +5,7 @@ import frontend.services.HackerNewsService;
 import frontend.services.OpenAIService;
 import frontend.services.StatsUpdateService;
 import common.SearchResult;
+import common.SearchResponse;
 import common.SystemStats;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
