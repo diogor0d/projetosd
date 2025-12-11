@@ -134,6 +134,7 @@ public class HackerNewsService {
                 int indexed = 0;
                 for (HNStory story : stories) {
                     try {
+                        System.out.println("[HackerNews] Indexing: " + story.title + " (" + story.url + ")");
                         gatewayService.indexURL(story.url);
                         indexed++;
                     } catch (Exception e) {
@@ -165,6 +166,7 @@ public class HackerNewsService {
         int indexed = 0;
         for (HNStory story : stories) {
             try {
+                System.out.println("[HackerNews] Indexing: " + story.title + " (" + story.url + ")");
                 gatewayService.indexURL(story.url);
                 indexed++;
             } catch (Exception e) {

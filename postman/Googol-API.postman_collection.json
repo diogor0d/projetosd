@@ -1,0 +1,290 @@
+{
+	"info": {
+		"_postman_id": "googol-api-collection",
+		"name": "Googol Search Engine API",
+		"description": "Collection of API endpoints for testing the Googol distributed search engine",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Search",
+			"item": [
+				{
+					"name": "Search - Page 0",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8081/api/search?q=java&page=0",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "java",
+									"description": "Search query terms"
+								},
+								{
+									"key": "page",
+									"value": "0",
+									"description": "Page number (0-indexed)"
+								}
+							]
+						},
+						"description": "Search for pages containing the query terms. Returns paginated results with metadata."
+					},
+					"response": []
+				},
+				{
+					"name": "Search - Multiple Terms",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8081/api/search?q=distributed systems&page=0",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "distributed systems"
+								},
+								{
+									"key": "page",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Search with multiple terms"
+					},
+					"response": []
+				}
+			],
+			"description": "Search endpoints for querying indexed pages"
+		},
+		{
+			"name": "Indexing",
+			"item": [
+				{
+					"name": "Index URL",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"url\": \"https://en.wikipedia.org/wiki/Distributed_computing\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8081/api/index",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"index"
+							]
+						},
+						"description": "Submit a URL for high-priority indexing"
+					},
+					"response": []
+				},
+				{
+					"name": "Index HackerNews Stories",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "query",
+									"value": "python",
+									"description": "Search terms to filter HN stories",
+									"type": "text"
+								},
+								{
+									"key": "maxUrls",
+									"value": "10",
+									"description": "Maximum number of stories to index (default: 10)",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://localhost:8081/index-hackernews",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"index-hackernews"
+							]
+						},
+						"description": "Index HackerNews top stories containing specific terms. Processes asynchronously and returns immediately."
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints for submitting URLs and HackerNews stories for indexing"
+		},
+		{
+			"name": "System Stats",
+			"item": [
+				{
+					"name": "Get System Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8081/api/stats",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"stats"
+							]
+						},
+						"description": "Get system statistics including indexed pages, active barrels, and top searches"
+					},
+					"response": []
+				}
+			],
+			"description": "System monitoring and statistics endpoints"
+		},
+		{
+			"name": "Page Analysis",
+			"item": [
+				{
+					"name": "Get Incoming Links",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8081/api/links-to?url=https://example.com",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"links-to"
+							],
+							"query": [
+								{
+									"key": "url",
+									"value": "https://example.com",
+									"description": "URL to find incoming links for"
+								}
+							]
+						},
+						"description": "Get list of pages that link to a specific URL"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints for analyzing page relationships and links"
+		},
+		{
+			"name": "AI Features",
+			"item": [
+				{
+					"name": "AI Analysis",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"machine learning\",\n    \"results\": [\n        {\n            \"url\": \"https://example.com/ml-intro\",\n            \"title\": \"Introduction to Machine Learning\",\n            \"snippet\": \"Machine learning is a subset of artificial intelligence...\"\n        },\n        {\n            \"url\": \"https://example.com/ml-algorithms\",\n            \"title\": \"Common ML Algorithms\",\n            \"snippet\": \"This article covers the most popular machine learning algorithms...\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8081/api/ai-analysis",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"ai-analysis"
+							]
+						},
+						"description": "Generate AI-powered contextual analysis of search results (requires OpenAI API key)"
+					},
+					"response": []
+				},
+				{
+					"name": "Spell Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8081/api/spell-check?q=machne learning",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"spell-check"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "machne learning",
+									"description": "Query to spell-check"
+								}
+							]
+						},
+						"description": "Check spelling and get suggestions for query terms"
+					},
+					"response": []
+				}
+			],
+			"description": "AI-powered features including analysis and spell checking"
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8081",
+			"type": "string"
+		}
+	]
+}

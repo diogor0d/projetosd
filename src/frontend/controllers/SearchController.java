@@ -5,7 +5,6 @@ import frontend.services.HackerNewsService;
 import frontend.services.OpenAIService;
 import frontend.services.StatsUpdateService;
 import common.SearchResult;
-import common.SearchResponse;
 import common.SystemStats;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -74,7 +73,6 @@ public class SearchController {
             model.addAttribute("totalPages", searchResponse.getTotalPages());
             model.addAttribute("hasResults", searchResponse.hasResults());
             model.addAttribute("hasMoreResults", searchResponse.hasMorePages());
-            model.addAttribute("searchTime", String.format("%.2f", searchResponse.getSearchTimeMs() / 1000.0));
 
             // gera análise com IA se solicitado e há resultados
             if (aiAnalysis && searchResponse.hasResults()) {
@@ -95,7 +93,7 @@ public class SearchController {
             // indexa stories do Hacker News se solicitado
             if (indexHackerNews) {
                 try {
-                    int indexed = hackerNewsService.indexTopStoriesWithTerms(query, 5);
+                    int indexed = hackerNewsService.indexTopStoriesWithTerms(query, 10);
                     model.addAttribute("hnIndexed", indexed);
                     model.addAttribute("hnMessage",
                             indexed + " Hacker News stories submitted for indexing");
