@@ -1,9 +1,10 @@
 {
 	"info": {
-		"_postman_id": "googol-api-collection",
+		"_postman_id": "02803bfd-3bd6-4433-a16f-cfe10d1eb168",
 		"name": "Googol Search Engine API",
 		"description": "Collection of API endpoints for testing the Googol distributed search engine",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "30168718"
 	},
 	"item": [
 		{
@@ -349,36 +350,7 @@
 				}
 			],
 			"description": "AI-powered features including analysis and spell checking"
-		}
-		,
-		{
-			"name": "OpenRouter",
-			"item": [
-				{
-					"name": "OpenRouter (local proxy) - Test Prompt",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"prompt\": \"Summarize the state of distributed search engines in 3 sentences.\",\n    \"maxTokens\": 200\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/api/openrouter/test"
-						},
-						"description": "Invoke the local OpenRouter proxy endpoint on your Spring app ({{baseUrl}}/api/openrouter/test). Requires local proxy to be running."
-					},
-					"response": []
-				}
-			],
-			"description": "Direct OpenRouter invocation for debugging LLM connectivity"
-		}
-		,
+		},
 		{
 			"name": "External APIs",
 			"item": [
@@ -430,6 +402,16 @@
 				{
 					"name": "OpenRouter (remote) - Chat Completion",
 					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{vault:openrouter}}",
+									"type": "string"
+								}
+							]
+						},
 						"method": "POST",
 						"header": [
 							{
@@ -443,7 +425,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"model\": \"meta-llama/llama-3.1-8b-instruct:free\",\n  \"messages\": [{ \"role\": \"user\", \"content\": \"Summarize distributed search engines in 2 sentences.\" }],\n  \"max_tokens\": 200,\n  \"temperature\": 0.7\n}"
+							"raw": "{\n  \"model\": \"meta-llama/llama-3.3-70b-instruct:free\",\n  \"messages\": [{ \"role\": \"user\", \"content\": \"Summarize distributed search engines in 2 sentences.\" }],\n  \"max_tokens\": 200,\n  \"temperature\": 0.7\n}"
 						},
 						"url": {
 							"raw": "https://openrouter.ai/api/v1/chat/completions",
