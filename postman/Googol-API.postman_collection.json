@@ -158,31 +158,41 @@
 			"name": "HackerNews API",
 			"item": [
 				{
-					"name": "List HackerNews Stories",
+					"name": "List HackerNews Stories (local)",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/api/hackernews/stories?query=python&maxStories=10",
+							"raw": "http://localhost:8081/api/hackernews/stories?query=python&maxStories=10",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"hackernews",
+								"stories"
+							],
 							"query": [
 								{
 									"key": "query",
 									"value": "python",
-									"description": "Terms to filter the HackerNews top stories"
+									"description": "Terms to filter the HackerNews top stories (local proxy)"
 								},
 								{
 									"key": "maxStories",
 									"value": "10",
-									"description": "Maximum number of stories to return"
+									"description": "Maximum number of stories to return (local proxy)"
 								}
 							]
 						},
-						"description": "Fetches recent HackerNews top stories that match the query terms"
+						"description": "Fetches HackerNews stories filtered by your local service (/api/hackernews/stories) — this calls your server's filtering/indexing logic (local)."
 					},
 					"response": []
 				},
 				{
-					"name": "Index HackerNews Stories (API)",
+					"name": "Index HackerNews Stories (local)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -196,9 +206,19 @@
 							"raw": "{\n    \"query\": \"machine learning\",\n    \"maxUrls\": 15\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/hackernews/index"
+							"raw": "http://localhost:8081/api/hackernews/index",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"hackernews",
+								"index"
+							]
 						},
-						"description": "Submit a filtered set of HackerNews stories for background indexing"
+						"description": "Triggers background indexing of HackerNews stories using your local service (/api/hackernews/index). This is a local endpoint that enqueues indexing jobs."
 					},
 					"response": []
 				}
@@ -335,7 +355,7 @@
 			"name": "OpenRouter",
 			"item": [
 				{
-					"name": "OpenRouter - Test Prompt",
+					"name": "OpenRouter (local proxy) - Test Prompt",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -351,12 +371,100 @@
 						"url": {
 							"raw": "{{baseUrl}}/api/openrouter/test"
 						},
-						"description": "Invoke the OpenRouter/OpenAI service directly via the API to validate key configuration"
+						"description": "Invoke the local OpenRouter proxy endpoint on your Spring app ({{baseUrl}}/api/openrouter/test). Requires local proxy to be running."
 					},
 					"response": []
 				}
 			],
 			"description": "Direct OpenRouter invocation for debugging LLM connectivity"
+		}
+		,
+		{
+			"name": "External APIs",
+			"item": [
+				{
+					"name": "HackerNews - Top Stories (remote)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://hacker-news.firebaseio.com/v0/topstories.json",
+							"protocol": "https",
+							"host": [
+								"hacker-news",
+								"firebaseio",
+								"com"
+							],
+							"path": [
+								"v0",
+								"topstories.json"
+							]
+						},
+						"description": "Fetch HackerNews top story IDs directly from the public API (remote) — returns an array of story IDs."
+					},
+					"response": []
+				},
+				{
+					"name": "HackerNews - Item by ID (remote)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://hacker-news.firebaseio.com/v0/item/8863.json",
+							"protocol": "https",
+							"host": [
+								"hacker-news",
+								"firebaseio",
+								"com"
+							],
+							"path": [
+								"v0",
+								"item",
+								"8863.json"
+							]
+						},
+						"description": "Fetch a single HackerNews item (story/comment) by ID from the public API (remote) — replace the ID in the path as needed"
+					},
+					"response": []
+				},
+				{
+					"name": "OpenRouter (remote) - Chat Completion",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{openrouter_api_key}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"model\": \"meta-llama/llama-3.1-8b-instruct:free\",\n  \"messages\": [{ \"role\": \"user\", \"content\": \"Summarize distributed search engines in 2 sentences.\" }],\n  \"max_tokens\": 200,\n  \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "https://openrouter.ai/api/v1/chat/completions",
+							"protocol": "https",
+							"host": [
+								"openrouter",
+								"ai"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chat",
+								"completions"
+							]
+						},
+						"description": "Call OpenRouter chat completions directly (remote). Set your OpenRouter API key in Postman as the variable `openrouter_api_key`."
+					},
+					"response": []
+				}
+			],
+			"description": "Direct calls to public external APIs (HackerNews, OpenRouter) for testing"
 		}
 	],
 	"variable": [
