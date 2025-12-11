@@ -4,13 +4,22 @@
   th:replace="~{fragments/layout :: layout(~{::title}, ~{::main})}"
 >
   <head>
-    <title>Googol - Dark Search</title>
+    <title>Googol - Distributed Search</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/googol_favicon.svg}" />
   </head>
   <body>
     <main class="container home-main">
       <div class="home-logo">
-        <img th:src="@{/googol_logo.svg}" alt="Googol" style="width: min(500px, 90vw); height: auto; display: block; margin: 0 auto;" />
+        <img
+          th:src="@{/googol_logo.svg}"
+          alt="Googol"
+          style="
+            width: min(500px, 90vw);
+            height: auto;
+            display: block;
+            margin: 0 auto;
+          "
+        />
         <p class="tagline">distributed crawling & indexing</p>
       </div>
 
