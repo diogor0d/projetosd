@@ -67,47 +67,169 @@
         <span th:text="${success}"></span>
       </div>
 
-      <h1>🔗 Páginas que apontam para este URL</h1>
+      <!-- Header / context -->
+      <section
+        class="card"
+        style="margin-top: 1rem; margin-bottom: 1.5rem; padding: 1.25rem 1.5rem"
+      >
+        <h1 style="font-weight: 500; margin: 0 0 0.5rem 0">
+          🔗 Incoming links for this URL
+        </h1>
+        <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem">
+          See which indexed pages in Googol reference this address. This helps
+          understand popularity, citations and navigation paths.
+        </p>
+      </section>
 
-      <!-- URL de destino -->
-      <div class="target-url">
-        <p><strong>URL:</strong></p>
-        <code th:text="${targetUrl}">https://example.com</code>
-      </div>
+      <!-- Target URL -->
+      <section
+        class="card"
+        style="margin-bottom: 1.5rem; padding: 1.1rem 1.25rem"
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+          "
+        >
+          <div>
+            <div
+              style="
+                text-transform: uppercase;
+                font-size: 0.75rem;
+                letter-spacing: 0.08em;
+                color: var(--text-secondary);
+                margin-bottom: 0.35rem;
+              "
+            >
+              Target URL
+            </div>
+            <code
+              th:text="${targetUrl}"
+              style="
+                font-size: 0.9rem;
+                background: var(--bg-surface);
+                padding: 0.4rem 0.6rem;
+                border-radius: 6px;
+                border: 1px solid var(--border);
+                word-break: break-all;
+                display: inline-block;
+                max-width: 100%;
+              "
+              >https://example.com</code
+            >
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center">
+            <a
+              th:href="${targetUrl}"
+              target="_blank"
+              class="btn-secondary"
+              style="text-decoration: none; white-space: nowrap"
+              >Open URL ↗</a
+            >
+          </div>
+        </div>
+      </section>
 
-      <!-- mensagem de erro -->
-      <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+      <!-- Error message -->
+      <div
+        th:if="${error}"
+        class="alert alert-error"
+        style="margin-bottom: 1.5rem"
+        th:text="${error}"
+      ></div>
 
-      <!-- lista de links -->
-      <div th:if="${hasLinks}" class="links-list">
-        <h2>
-          Encontradas
-          <span th:text="${#lists.size(links)}">0</span> referências
-        </h2>
-        <ul>
-          <li th:each="link : ${links}">
-            <a th:href="${link}" target="_blank" th:text="${link}">URL</a>
+      <!-- Links list -->
+      <section
+        th:if="${hasLinks}"
+        class="card"
+        style="margin-bottom: 2rem; padding: 1.25rem 1.5rem"
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+          "
+        >
+          <h2 style="font-weight: 500; margin: 0">Incoming links</h2>
+          <span
+            style="
+              font-size: 0.8rem;
+              padding: 0.25rem 0.6rem;
+              border-radius: 999px;
+              border: 1px solid var(--border);
+              color: var(--text-secondary);
+            "
+          >
+            <span th:text="${#lists.size(links)}">0</span> references
+          </span>
+        </div>
+
+        <ul
+          class="links-list"
+          style="list-style: none; padding: 0; margin: 1rem 0 0 0"
+        >
+          <li
+            th:each="link : ${links}"
+            style="
+              padding: 0.6rem 0;
+              border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            "
+          >
+            <a
+              th:href="${link}"
+              target="_blank"
+              th:text="${link}"
+              style="
+                color: var(--link-color);
+                text-decoration: none;
+                font-size: 0.9rem;
+                word-break: break-all;
+              "
+              >URL</a
+            >
           </li>
         </ul>
-      </div>
+      </section>
 
-      <!-- mensagem quando não há links -->
-      <div th:if="${!hasLinks && targetUrl != null}" class="no-results">
-        <h2>Nenhuma página aponta para este URL</h2>
-        <p>Isto pode significar que:</p>
-        <ul>
-          <li>O URL ainda não foi indexado</li>
-          <li>Nenhuma página indexada contém links para este URL</li>
+      <!-- No links state -->
+      <section
+        th:if="${!hasLinks && targetUrl != null}"
+        class="card"
+        style="text-align: left; margin-top: 1rem; padding: 1.25rem 1.5rem"
+      >
+        <h2 style="font-weight: 500; margin-top: 0">No incoming links found</h2>
+        <p style="color: var(--text-secondary); font-size: 0.9rem">
+          This can happen when:
+        </p>
+        <ul
+          style="
+            margin-left: 1.2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+          "
+        >
+          <li>The URL has not been indexed yet</li>
+          <li>No indexed page currently links to this address</li>
           <li>
-            O crawler ainda não descobriu páginas que referenciem este URL
+            The crawler has not yet discovered pages that reference this URL
           </li>
         </ul>
-      </div>
+      </section>
 
-      <!-- botão voltar -->
-      <div class="action-buttons">
+      <!-- Back button -->
+      <div
+        class="action-buttons"
+        style="margin-top: 2rem; display: flex; justify-content: flex-start"
+      >
         <button onclick="window.history.back()" class="btn-secondary">
-          ← Voltar
+          ← Back
         </button>
       </div>
 

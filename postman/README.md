@@ -23,6 +23,21 @@ This folder contains Postman collections for testing the Googol distributed sear
   - `query`: Search terms to filter stories (e.g., "python", "rust", "AI")
   - `maxUrls`: Number of stories to index (default: 10)
 
+### HackerNews API
+
+- **List HackerNews Stories**: Returns the top stories whose titles contain the requested terms
+  - `query`: Space-separated keywords used to filter the title text
+  - `maxStories`: How many stories to inspect before stopping (default: 10, max 200)
+- **Index HackerNews Stories (API)**: Submits the same filter via JSON so you can trigger indexing from scripts
+  - Request body:
+    ```json
+    {
+      "query": "distributed systems",
+      "maxUrls": 20
+    }
+    ```
+  - This endpoint responds immediately with `202 Accepted` and runs the indexing job in the background
+
 ### System Stats
 
 - **Get System Stats**: View system statistics including indexed pages, active barrels, and top searches
@@ -35,6 +50,18 @@ This folder contains Postman collections for testing the Googol distributed sear
 
 - **AI Analysis**: Generate contextual analysis of search results (requires OpenAI API key)
 - **Spell Check**: Get spelling suggestions for query terms
+
+### OpenRouter
+
+- **OpenRouter - Test Prompt**: Validates connectivity to the OpenRouter AI service
+  - Request body:
+    ```json
+    {
+      "prompt": "Summarize the state of distributed search engines in 3 sentences.",
+      "maxTokens": 200
+    }
+    ```
+  - Use this to confirm the backend can reach the OpenRouter endpoint and retrieve a textual response
 
 ## Testing HackerNews Indexing
 
@@ -50,6 +77,8 @@ To test HackerNews story indexing:
    [HackerNews] Indexing: Story Title (https://story-url.com)
    ```
 5. After indexing completes, use the **Search** endpoint to find the indexed content
+
+Alternatively, the **HackerNews API → Index HackerNews Stories (API)** request lets you post the same payload as JSON, which is useful when scripting the call or triggering from CI.
 
 ## Example Queries for HackerNews
 
