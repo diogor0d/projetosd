@@ -155,6 +155,57 @@
 			"description": "Endpoints for submitting URLs and HackerNews stories for indexing"
 		},
 		{
+			"name": "HackerNews API",
+			"item": [
+				{
+					"name": "List HackerNews Stories",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/hackernews/stories?query=python&maxStories=10",
+							"query": [
+								{
+									"key": "query",
+									"value": "python",
+									"description": "Terms to filter the HackerNews top stories"
+								},
+								{
+									"key": "maxStories",
+									"value": "10",
+									"description": "Maximum number of stories to return"
+								}
+							]
+						},
+						"description": "Fetches recent HackerNews top stories that match the query terms"
+					},
+					"response": []
+				},
+				{
+					"name": "Index HackerNews Stories (API)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"query\": \"machine learning\",\n    \"maxUrls\": 15\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/hackernews/index"
+						},
+						"description": "Submit a filtered set of HackerNews stories for background indexing"
+					},
+					"response": []
+				}
+			],
+			"description": "Programmatic access to HackerNews story discovery and indexing"
+		},
+		{
 			"name": "System Stats",
 			"item": [
 				{
@@ -278,6 +329,34 @@
 				}
 			],
 			"description": "AI-powered features including analysis and spell checking"
+		}
+		,
+		{
+			"name": "OpenRouter",
+			"item": [
+				{
+					"name": "OpenRouter - Test Prompt",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"prompt\": \"Summarize the state of distributed search engines in 3 sentences.\",\n    \"maxTokens\": 200\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/openrouter/test"
+						},
+						"description": "Invoke the OpenRouter/OpenAI service directly via the API to validate key configuration"
+					},
+					"response": []
+				}
+			],
+			"description": "Direct OpenRouter invocation for debugging LLM connectivity"
 		}
 	],
 	"variable": [

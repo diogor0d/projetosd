@@ -4,6 +4,7 @@ import frontend.services.GatewayService;
 import frontend.services.StatsUpdateService;
 import frontend.services.OpenAIService;
 import frontend.services.SpellCheckService;
+import frontend.services.HackerNewsService;
 import common.SearchResult;
 import common.SystemStats;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,9 @@ public class ApiController {
 
     @Autowired
     private SpellCheckService spellCheckService;
+
+    @Autowired
+    private HackerNewsService hackerNewsService;
 
     /**
      * endpoint para pesquisa via API
@@ -97,6 +101,66 @@ public class ApiController {
     }
 
     /**
+     * endpoint para listar stories do HackerNews filtradas por termos
+     */
+    @GetMapping("/hackernews/stories")
+    public ResponseEntity<?> getHackerNewsStories(
+            @RequestParam("query") String query,
+            @RequestParam(value = "maxStories", defaultValue = "10") int maxStories) {
+        try {
+            if (query == null || query.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "query é obrigatório"));
+            }
+
+            List<HackerNewsService.HNStory> stories = hackerNewsService.getTopStoriesWithTerms(query, maxStories);
+            return ResponseEntity.ok(Map.of(
+                    "query", query,
+                    "maxStories", maxStories,
+                    "count", stories.size(),
+                    "stories", stories));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * endpoint para disparar indexação de stories do HackerNews de forma assíncrona
+     */
+    @PostMapping("/hackernews/index")
+    public ResponseEntity<?> indexHackerNewsStories(@RequestBody Map<String, Object> body) {
+        try {
+            String query = (String) body.get("query");
+            if (query == null || query.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "query é obrigatório"));
+            }
+
+            int maxUrls = 10;
+            Object maxUrlsValue = body.get("maxUrls");
+            if (maxUrlsValue instanceof Number) {
+                maxUrls = ((Number) maxUrlsValue).intValue();
+            } else if (maxUrlsValue instanceof String) {
+                try {
+                    maxUrls = Integer.parseInt((String) maxUrlsValue);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+
+            hackerNewsService.indexTopStoriesWithTermsAsync(query, maxUrls);
+            return ResponseEntity.accepted().body(Map.of(
+                    "status", "accepted",
+                    "query", query,
+                    "maxUrls", maxUrls,
+                    "message", "Indexação em segundo plano"));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
      * endpoint para gerar análise AI assíncrona
      */
     @PostMapping("/ai-analysis")
@@ -134,6 +198,52 @@ public class ApiController {
             e.printStackTrace();
             return ResponseEntity.ok(Map.of(
                     "analysis", "Erro ao gerar análise: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * endpoint direto para testar o serviço OpenRouter / OpenAI
+     */
+    @PostMapping("/openrouter/test")
+    public ResponseEntity<?> testOpenRouter(@RequestBody Map<String, Object> body) {
+        try {
+            String prompt = (String) body.get("prompt");
+            if (prompt == null || prompt.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "prompt é obrigatório"));
+            }
+
+            int maxTokens = 300;
+            Object maxTokensValue = body.get("maxTokens");
+            if (maxTokensValue instanceof Number) {
+                maxTokens = ((Number) maxTokensValue).intValue();
+            } else if (maxTokensValue instanceof String) {
+                try {
+                    maxTokens = Integer.parseInt((String) maxTokensValue);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+
+            if (!openAIService.isAvailable()) {
+                return ResponseEntity.ok(Map.of(
+                        "status", "unavailable",
+                        "message", "OpenRouter API key não configurada"));
+            }
+
+            String openRouterResponse = openAIService.callOpenAI(prompt, maxTokens);
+            if (openRouterResponse == null) {
+                return ResponseEntity.internalServerError()
+                        .body(Map.of("error", "Resposta vazia da OpenRouter API"));
+            }
+
+            return ResponseEntity.ok(Map.of(
+                    "prompt", prompt,
+                    "maxTokens", maxTokens,
+                    "response", openRouterResponse));
+        } catch (Exception e) {
+            System.err.println("[ApiController] Erro no teste OpenRouter: " + e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", e.getMessage()));
         }
     }
 
