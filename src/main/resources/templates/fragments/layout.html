@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title th:replace="${title}">Googol</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/googol_favicon.svg}" />
+    <script th:src="@{/js/theme-toggle.js}"></script>
     <link rel="stylesheet" th:href="@{/css/style.css}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -46,12 +47,21 @@
               </div>
             </div>
           </a>
+          <div class="theme-toggle" id="theme-toggle">
+            <div class="theme-toggle-switch"></div>
+          </div>
+        </div>
+        <div class="theme-toggle" id="theme-toggle" th:if="${activePage == 'stats'}">
+          <div class="theme-toggle-switch"></div>
         </div>
       </nav>
     </header>
 
     <!-- Stats bar for home page only - centered at top -->
     <div th:if="${activePage == 'home'}" class="home-stats-bar">
+      <div class="theme-toggle" id="theme-toggle">
+        <div class="theme-toggle-switch"></div>
+      </div>
       <a th:href="@{/stats}" class="stats-bar-link home-stats-link">
         <div class="stats-bar">
           <div class="stats-bar-content">
