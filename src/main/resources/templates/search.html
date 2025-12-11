@@ -395,6 +395,34 @@
       </div>
 
       <style>
+        @media (max-width: 768px) {
+          .pagination {
+            gap: 0.35rem;
+            padding-bottom: 0.5rem;
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+            width: 100%;
+            white-space: nowrap;
+          }
+
+          .pagination-number,
+          .pagination-nav,
+          .pagination-current {
+            min-width: 2rem;
+            padding: 0.35rem 0.75rem;
+            flex: 0 0 auto;
+          }
+
+          .pagination::-webkit-scrollbar {
+            height: 0.3rem;
+          }
+
+          .pagination::-webkit-scrollbar-thumb {
+            background: rgba(var(--accent-rgb), 0.35);
+            border-radius: 999px;
+          }
+        }
+
         .pagination-number:hover,
         .pagination-nav:hover {
           background: rgba(var(--accent-rgb), 0.1);
