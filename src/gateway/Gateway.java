@@ -436,8 +436,9 @@ public class Gateway extends UnicastRemoteObject implements IGateway {
                                 .mapToLong(Long::longValue)
                                 .average()
                                 .orElse(0.0);
-                        // cria novo BarrelStats com tempo de resposta real
-                        bs = new BarrelStats(bs.getBarrelId(), bs.getIndexSize(), avgResponseTime);
+                        // cria novo BarrelStats com tempo de resposta real E preserva sync info
+                        bs = new BarrelStats(bs.getBarrelId(), bs.getIndexSize(), avgResponseTime,
+                                bs.isSyncing(), bs.getSyncingFromPeer(), bs.getSyncProgress());
                     }
 
                     barrelStatsList.add(bs);
