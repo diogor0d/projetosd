@@ -5,19 +5,19 @@
     --bg-app: #0a0a0a;           /* Deepest black/grey */
     --bg-surface: #1a1a1a;       /* Cards and Headers */
     --bg-hover: #2a2a2a;         /* Hover states */
-    
+
     --border: #333333;           /* Subtle borders */
-    
+
     --text-primary: #ededed;     /* Main text (almost white) */
     --text-secondary: #a0a0a0;   /* Muted text */
-    
+
     --accent: #ffffff;           /* White accents */
-    --accent-hover: #cccccc;     
-    
+    --accent-hover: #cccccc;
+
     --link-color: #8ab4f8;       /* Accessible light blue for results */
     --success: #81c995;
     --error: #f28b82;
-    
+
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     --radius: 12px;
 }
@@ -384,9 +384,9 @@ main {
 .tagline { color: var(--text-secondary); margin-bottom: 1rem; }
 
 /* --- Search Input Styling --- */
-.search-box { 
-    width: 100%; 
-    max-width: 600px; 
+.search-box {
+    width: 100%;
+    max-width: 600px;
     margin-bottom: 1rem;
     display: flex;
     flex-direction: column;
@@ -759,16 +759,16 @@ input:focus {
     white-space: nowrap;
 }
 .result-title a:hover { text-decoration: underline; }
-.result-url { 
-    color: var(--text-secondary); 
-    font-size: 0.85rem; 
-    margin-bottom: 0.5rem; 
+.result-url {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.result-citation { 
-    color: var(--text-primary); 
+.result-citation {
+    color: var(--text-primary);
     display: -webkit-box;
     -webkit-line-clamp: 3;
     line-clamp: 3;
@@ -977,7 +977,9 @@ footer {
     }
 
     .home-stats-bar {
+        display: flex;
         flex-direction: column;
+        height: auto;
         align-items: center;
         gap: 1rem;
         margin-bottom: 1rem;
@@ -985,6 +987,16 @@ footer {
 
     .home-stats-bar .stats-bar-link {
         order: 1;
+        width: 100%;
+        height: auto;
+    }
+    
+    .home-stats-link .stats-bar {
+        position: relative;
+        top: auto;
+        left: auto;
+        transform: none;
+        margin: 0 auto;
     }
 
     .home-stats-bar .theme-toggle {
@@ -1106,12 +1118,14 @@ footer {
     content: '🌙';
     left: 50%;
     transform: translate(calc(-50% - 15px), -50%);
+    margin-top: 2px;
 }
 
 .theme-toggle::after {
     content: '☀️';
     left: 50%;
     transform: translate(calc(-50% + 15px), -50%);
+    margin-top: 2px;
 }
 
 [data-theme="light"] .theme-toggle-switch::before {
