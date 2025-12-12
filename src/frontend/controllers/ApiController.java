@@ -85,14 +85,13 @@ public class ApiController {
 
     /**
      * endpoint para obter estatísticas via API
+     * sempre busca stats atualizadas do Gateway
      */
     @GetMapping("/stats")
     public ResponseEntity<?> getStats() {
         try {
-            SystemStats stats = statsUpdateService.getLastStats();
-            if (stats == null) {
-                stats = gatewayService.getSystemStats();
-            }
+            // sempre busca stats frescas do Gateway para evitar dados stale
+            SystemStats stats = gatewayService.getSystemStats();
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
