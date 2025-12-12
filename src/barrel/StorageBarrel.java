@@ -50,7 +50,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
     // configuracoes carregadas de system.properties
     private static int HEALTH_INTERVAL_MS = 5000; // intervalo de health check em ms
     private static int SHUTDOWN_MS = 500; // tempo de espera para shutdown em ms
-    private static int SAVE_TIMEOUT_MS = 10000; // timeout para gravar indice em ms
+    private static int SAVE_TIMEOUT_MS = 30000; // timeout para gravar indice em ms (30s para ficheiros grandes)
     private static int CHUNK_SIZE = 100; // tamanho do chunk para sincronizacao/ porta RMI
 
     public StorageBarrel(String barrelId) throws RemoteException {
@@ -410,6 +410,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     /**
      * grava o indice para disco usando formato JSON (simples e confiavel)
+     * Grava TODOS os entries incluindo placeholders para preservar a estrutura de
+     * inlinks
      */
     private void saveIndexToDisk() {
         if (!useJsonIndex) {
@@ -419,6 +421,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
         String filename = "data/barrel_" + barrelId + "_index.json";
         System.out.println("[" + barrelId + "] Saving index to " + filename + "...");
+        long startTime = System.currentTimeMillis();
 
         try {
             // garante que diretorio data existe
@@ -433,6 +436,8 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             Map<String, Integer> urlToDocIdSnapshot;
             Map<Integer, String> docIdToUrlSnapshot;
             int nextDocIdSnapshot;
+            int contentPagesCount;
+            int placeholderCount;
 
             synchronized (this) {
                 invertedIndexSnapshot = new HashMap<>();
@@ -441,45 +446,28 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     invertedIndexSnapshot.put(entry.getKey(), new HashSet<>(entry.getValue()));
                 }
 
-                // grava APENAS paginas com conteudo real (exclui placeholders)
-                pageDatabaseSnapshot = new HashMap<>();
-                int placeholderCount = 0;
-                for (Map.Entry<Integer, PageInfo> entry : pageDatabase.entrySet()) {
-                    PageInfo page = entry.getValue();
+                // GRAVA TODAS AS PAGINAS incluindo placeholders
+                // placeholders sao essenciais para preservar a estrutura de inlinks/outlinks
+                pageDatabaseSnapshot = new HashMap<>(pageDatabase);
+
+                // conta paginas com conteudo vs placeholders para logging
+                contentPagesCount = 0;
+                placeholderCount = 0;
+                for (PageInfo page : pageDatabase.values()) {
                     if (page.getWords() != null && !page.getWords().isEmpty()) {
-                        // pagina tem conteudo - grava
-                        pageDatabaseSnapshot.put(entry.getKey(), page);
+                        contentPagesCount++;
                     } else {
-                        // placeholder - ignora
                         placeholderCount++;
                     }
                 }
 
-                if (placeholderCount > 0) {
-                    System.out.println("[" + barrelId + "] Skipping " + placeholderCount +
-                            " placeholder entries (saving only " + pageDatabaseSnapshot.size()
-                            + " pages with content)");
-                }
+                System.out.println("[" + barrelId + "] Saving all " + pageDatabase.size() +
+                        " pages (" + contentPagesCount + " with content, " +
+                        placeholderCount + " placeholders for backlink structure)");
 
                 urlToDocIdSnapshot = new HashMap<>(urlToDocId);
                 docIdToUrlSnapshot = new HashMap<>(docIdToUrl);
                 nextDocIdSnapshot = nextDocId.get();
-
-                // debug: verifica se objetos PageInfo tem dados incluindo frequencias de termos
-                for (Map.Entry<Integer, PageInfo> entry : pageDatabaseSnapshot.entrySet()) {
-                    PageInfo pi = entry.getValue();
-                    if (entry.getKey() <= 3) { // mostra log das primeiras 3 paginas
-                        int tfSize = (pi.getTermFrequencies() != null) ? pi.getTermFrequencies().size() : 0;
-                        /*
-                         * System.out.println("[" + barrelId + "] [DEBUG] Saving PageInfo docId=" +
-                         * entry.getKey() +
-                         * " words=" + pi.getWords().size() +
-                         * " termFreqs=" + tfSize +
-                         * " inlinks=" + pi.getInlinks().size() +
-                         * " outlinks=" + pi.getOutlinks().size());
-                         */
-                    }
-                }
             }
 
             // cria estrutura de dados JSON
@@ -491,18 +479,47 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             jsonData.put("docIdToUrl", docIdToUrlSnapshot);
             jsonData.put("nextDocId", nextDocIdSnapshot);
 
-            // escreve para ficheiro usando Gson
-            com.google.gson.Gson gson = new com.google.gson.GsonBuilder()
-                    .setPrettyPrinting()
-                    .create();
+            // escreve para ficheiro usando Gson SEM pretty printing (mais compacto)
+            // - pretty printing adiciona whitespace que torna o ficheiro 3-5x maior
+            // - sem pretty printing mantem validade JSON e reduz tamanho significativamente
+            com.google.gson.Gson gson = new com.google.gson.Gson();
 
-            try (java.io.FileWriter writer = new java.io.FileWriter(filename)) {
+            // escreve para ficheiro temporário primeiro com buffering para performance
+            String tempFilename = filename + ".tmp";
+            try (java.io.BufferedWriter writer = new java.io.BufferedWriter(
+                    new java.io.FileWriter(tempFilename), 65536)) {
                 gson.toJson(jsonData, writer);
+                writer.flush(); // força flush do buffer
+                writer.close(); // garante que ficheiro fica completamente escrito
             }
 
-            System.out.println("[" + barrelId + "] Index saved successfully (" +
-                    pageDatabase.size() + " pages, " +
-                    invertedIndex.size() + " terms)");
+            // valida que ficheiro temporário foi escrito com sucesso
+            File tempFile = new File(tempFilename);
+            if (!tempFile.exists()) {
+                throw new IOException("Temporary file was not created: " + tempFilename);
+            }
+
+            long tempFileSize = tempFile.length();
+            System.out.println("[" + barrelId + "] Temporary file written: " +
+                    (tempFileSize / 1024 / 1024) + " MB");
+
+            // se tudo correu bem, move temporário para final (atómica no FS)
+            File finalFile = new File(filename);
+            if (finalFile.exists()) {
+                // faz backup do ficheiro anterior em caso de problema
+                String backupFilename = filename + ".backup";
+                finalFile.renameTo(new File(backupFilename));
+            }
+
+            // operacao atómica no filesystem
+            if (!tempFile.renameTo(finalFile)) {
+                throw new IOException("Failed to rename temporary file to final file");
+            }
+
+            long duration = System.currentTimeMillis() - startTime;
+            System.out.println("[" + barrelId + "] Index saved successfully in " +
+                    duration + "ms (" + (finalFile.length() / 1024 / 1024) +
+                    " MB, " + pageDatabase.size() + " total pages)");
         } catch (Exception e) {
             System.err.println("[" + barrelId + "] Failed to save index: " + e.getMessage());
             e.printStackTrace();
@@ -511,6 +528,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     /**
      * carrega o indice do disco usando formato JSON
+     * Se o ficheiro estiver corrompido, faz fallback para index vazio
      */
     private void loadIndexFromDisk() {
         if (!useJsonIndex) {
@@ -532,9 +550,13 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
             com.google.gson.Gson gson = new com.google.gson.Gson();
 
             try (java.io.FileReader reader = new java.io.FileReader(filename)) {
-                // le JSON
+                // le JSON com fallback em caso de erro
                 @SuppressWarnings("unchecked")
                 Map<String, Object> jsonData = gson.fromJson(reader, Map.class);
+
+                if (jsonData == null) {
+                    throw new Exception("JSON parse returned null");
+                }
 
                 // restaura mapeamentos de URL para docId
                 @SuppressWarnings("unchecked")
@@ -704,6 +726,31 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                         invertedIndex.size() + " terms)");
 
             }
+        } catch (com.google.gson.JsonSyntaxException e) {
+            // indice corrupto - faz fallback para index vazio
+            System.err.println("[" + barrelId + "] INDEX FILE CORRUPTED: " + e.getMessage());
+            System.out.println("[" + barrelId + "] Backing up corrupted file...");
+
+            File corruptedFile = new File(filename);
+            File backupFile = new File(filename + ".corrupted");
+
+            try {
+                // remove backup anterior se existir
+                if (backupFile.exists()) {
+                    backupFile.delete();
+                }
+                // move ficheiro corrupto para .corrupted
+                if (corruptedFile.exists()) {
+                    corruptedFile.renameTo(backupFile);
+                    System.out
+                            .println("[" + barrelId + "] Corrupted file backed up to: " + backupFile.getAbsolutePath());
+                }
+            } catch (Exception backupEx) {
+                System.err.println("[" + barrelId + "] Failed to backup corrupted file: " + backupEx.getMessage());
+            }
+
+            System.out.println("[" + barrelId + "] Starting with fresh empty index");
+
         } catch (Exception e) {
             System.err.println("[" + barrelId + "] Failed to load index: " + e.getMessage());
             e.printStackTrace();

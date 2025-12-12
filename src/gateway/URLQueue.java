@@ -33,10 +33,28 @@ public class URLQueue {
      *                     automaticamente
      */
     public void addURL(String url, boolean highPriority) {
-        // Only add if URL is not already in queue
-        if (urlsInQueue.add(url)) {
-            PriorityURL priorityURL = new PriorityURL(url, highPriority);
-            queue.put(priorityURL);
+        // If URL not present, add normally
+        synchronized (this) {
+            if (urlsInQueue.add(url)) {
+                PriorityURL priorityURL = new PriorityURL(url, highPriority);
+                queue.put(priorityURL);
+                return;
+            }
+            // URL already present. If caller requests high priority, try to upgrade
+            if (highPriority) {
+                // Iterate queue to find existing entry and upgrade if it is normal
+                for (PriorityURL pu : queue) {
+                    if (pu.url.equals(url) && !pu.highPriority) {
+                        // remove old (normal) entry and insert a new high-priority one
+                        boolean removed = queue.remove(pu);
+                        if (removed) {
+                            PriorityURL upgraded = new PriorityURL(url, true);
+                            queue.put(upgraded);
+                        }
+                        break;
+                    }
+                }
+            }
         }
     }
 
@@ -73,23 +91,29 @@ public class URLQueue {
 
         if (queue.isEmpty()) {
             System.out.println("Queue is empty.");
-        } else {
-            int totalSize = queue.size();
-            int maxToShow = Math.min(20, totalSize);
+            System.out.println("========================\n");
+            return;
+        }
 
-            System.out.println(
-                    "Queue contents (showing first " + maxToShow + " of " + totalSize + " in priority order):");
-            int index = 1;
-            for (PriorityURL priorityURL : queue) {
-                if (index > maxToShow) {
-                    System.out.println("  ... (" + (totalSize - maxToShow) + " more entries)");
-                    break;
-                }
-                System.out.println(String.format("  %d. [%s] %s",
-                        index++,
-                        priorityURL.highPriority ? "HIGH" : "NORMAL",
-                        priorityURL.url));
-            }
+        // PriorityBlockingQueue iterator does NOT guarantee ordered traversal.
+        // To show the queue in priority order we copy to an array and sort.
+        PriorityURL[] arr = queue.toArray(new PriorityURL[0]);
+        java.util.Arrays.sort(arr);
+
+        int totalSize = arr.length;
+        int maxToShow = Math.min(20, totalSize);
+
+        System.out.println(
+                "Queue contents (showing first " + maxToShow + " of " + totalSize + " in priority order):");
+        for (int i = 0; i < maxToShow; i++) {
+            PriorityURL priorityURL = arr[i];
+            System.out.println(String.format("  %d. [%s] %s",
+                    i + 1,
+                    priorityURL.highPriority ? "HIGH" : "NORMAL",
+                    priorityURL.url));
+        }
+        if (totalSize > maxToShow) {
+            System.out.println("  ... (" + (totalSize - maxToShow) + " more entries)");
         }
         System.out.println("========================\n");
     }
@@ -106,23 +130,27 @@ public class URLQueue {
 
         if (queue.isEmpty()) {
             sb.append("Queue is empty.\n");
-        } else {
-            int totalSize = queue.size();
-            int maxToShow = Math.min(20, totalSize);
+            sb.append("========================\n");
+            return sb.toString();
+        }
 
-            sb.append("Queue contents (showing first ").append(maxToShow)
-                    .append(" of ").append(totalSize).append(" in priority order):\n");
-            int index = 1;
-            for (PriorityURL priorityURL : queue) {
-                if (index > maxToShow) {
-                    sb.append("  ... (").append(totalSize - maxToShow).append(" more entries)\n");
-                    break;
-                }
-                sb.append(String.format("  %d. [%s] %s\n",
-                        index++,
-                        priorityURL.highPriority ? "HIGH" : "NORMAL",
-                        priorityURL.url));
-            }
+        PriorityURL[] arr = queue.toArray(new PriorityURL[0]);
+        java.util.Arrays.sort(arr);
+
+        int totalSize = arr.length;
+        int maxToShow = Math.min(20, totalSize);
+
+        sb.append("Queue contents (showing first ").append(maxToShow)
+                .append(" of ").append(totalSize).append(" in priority order):\n");
+        for (int i = 0; i < maxToShow; i++) {
+            PriorityURL priorityURL = arr[i];
+            sb.append(String.format("  %d. [%s] %s\n",
+                    i + 1,
+                    priorityURL.highPriority ? "HIGH" : "NORMAL",
+                    priorityURL.url));
+        }
+        if (totalSize > maxToShow) {
+            sb.append("  ... (" + (totalSize - maxToShow) + " more entries)\n");
         }
         sb.append("========================\n");
         return sb.toString();

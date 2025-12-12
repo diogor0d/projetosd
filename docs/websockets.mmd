@@ -1,0 +1,44 @@
+﻿sequenceDiagram
+  participant Browser as "Browser (Utilizador)"
+  participant SpringBoot as "Spring Boot (WebSocket)"
+  participant ServicoStats as "Serviço de Atualização de Estatísticas"
+  participant ServicoGateway as "Serviço Gateway (wrapper RMI)"
+  participant Gateway as "Gateway (Meta 1)"
+
+  Note over Gateway,ServicoStats: Fase de registo (arranque)
+  ServicoStats->>ServicoGateway: registerStatsListener()
+  ServicoGateway->>Gateway: regista listener RMI
+  Gateway->>Gateway: adiciona a statsListeners
+
+  Note over Browser,Gateway: Fluxo híbrido: Callback RMI + Push WebSocket
+
+  rect rgb(200, 220, 255)
+  Note over Gateway,ServicoStats: 1) O Gateway deteta uma alteração nas estatísticas
+  Gateway->>Gateway: notifyStatsListeners()
+  end
+
+  rect rgb(255, 220, 200)
+  Note over Gateway,ServicoStats: 2) Callback RMI direto sem polling
+  Gateway->>ServicoStats: updateStats(SystemStats) RMI
+  activate ServicoStats
+  ServicoStats->>ServicoStats: guarda lastStats
+  end
+
+  rect rgb(200, 255, 220)
+  Note over ServicoStats,SpringBoot: 3) Difusão via WebSocket broadcast
+  ServicoStats->>SpringBoot: convertAndSend topic/stats stats
+  deactivate ServicoStats
+  activate SpringBoot
+  SpringBoot->>SpringBoot: broker encaminha para subscritores
+  end
+
+  rect rgb(255, 255, 200)
+  Note over SpringBoot,Browser: 4) Push em tempo real para o browser
+  SpringBoot->>Browser: WebSocket mensagem topic /topic/stats
+  deactivate SpringBoot
+  activate Browser
+  Browser->>Browser: updateStatsUI stats
+  deactivate Browser
+  end
+
+  Note over Browser,Gateway: As estatísticas são atualizadas em tempo real sem refresh periódico
