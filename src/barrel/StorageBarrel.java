@@ -49,8 +49,9 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
     // configuracoes carregadas de system.properties
     private static int HEALTH_INTERVAL_MS = 5000; // intervalo de health check em ms
-    private static int SHUTDOWN_MS = 500; // tempo de espera para shutdown em ms
-    private static int SAVE_TIMEOUT_MS = 30000; // timeout para gravar indice em ms (30s para ficheiros grandes)
+    private static int SHUTDOWN_MS = 2000; // tempo de espera para shutdown em ms (2s para dar tempo de parar health
+                                           // check)
+    private static int SAVE_TIMEOUT_MS = 120000; // timeout para gravar indice em ms (2 minutos para indices massivos)
     private static int CHUNK_SIZE = 100; // tamanho do chunk para sincronizacao/ porta RMI
 
     public StorageBarrel(String barrelId) throws RemoteException {
@@ -486,11 +487,17 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
             // escreve para ficheiro temporário primeiro com buffering para performance
             String tempFilename = filename + ".tmp";
+            System.out.println("[" + barrelId + "] Serializing JSON (may take a while for large indices)...");
+            long serializeStart = System.currentTimeMillis();
+
             try (java.io.BufferedWriter writer = new java.io.BufferedWriter(
-                    new java.io.FileWriter(tempFilename), 65536)) {
+                    new java.io.FileWriter(tempFilename), 262144)) { // 256KB buffer para performance
                 gson.toJson(jsonData, writer);
                 writer.flush(); // força flush do buffer
                 writer.close(); // garante que ficheiro fica completamente escrito
+
+                long serializeTime = System.currentTimeMillis() - serializeStart;
+                System.out.println("[" + barrelId + "] JSON serialization complete in " + serializeTime + "ms");
             }
 
             // valida que ficheiro temporário foi escrito com sucesso
@@ -505,14 +512,31 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
 
             // se tudo correu bem, move temporário para final (atómica no FS)
             File finalFile = new File(filename);
+            File backupFile = new File(filename + ".backup");
+
+            // Windows: nao pode renomear para ficheiro existente
+            // entao delete o antigo primeiro
             if (finalFile.exists()) {
-                // faz backup do ficheiro anterior em caso de problema
-                String backupFilename = filename + ".backup";
-                finalFile.renameTo(new File(backupFilename));
+                // faz backup do ficheiro anterior antes de delete
+                try {
+                    if (backupFile.exists()) {
+                        backupFile.delete();
+                    }
+                    finalFile.renameTo(backupFile);
+                } catch (Exception e) {
+                    // se backup falhar, tenta delete direto
+                    finalFile.delete();
+                }
             }
 
-            // operacao atómica no filesystem
-            if (!tempFile.renameTo(finalFile)) {
+            // agora delete o final (se ainda existir depois do rename)
+            if (finalFile.exists()) {
+                finalFile.delete();
+            }
+
+            // agora sim rename temporario para final (ficheiro nao existe)
+            boolean renameSuccess = tempFile.renameTo(finalFile);
+            if (!renameSuccess) {
                 throw new IOException("Failed to rename temporary file to final file");
             }
 
@@ -689,29 +713,9 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
                     }
                 }
 
-                // reconstroi inlinks a partir de outlinks (ja que nao gravamos placeholders)
-                // isto reconstroi a estrutura de backlinks a partir das paginas gravadas
-                System.out.println("[" + barrelId + "] Reconstructing inlinks from outlinks...");
-                int inlinksReconstructed = 0;
-
-                for (Map.Entry<Integer, PageInfo> entry : pageDatabase.entrySet()) {
-                    int sourceDocId = entry.getKey();
-                    PageInfo sourcePage = entry.getValue();
-
-                    // para cada outlink desta pagina
-                    for (Integer targetDocId : sourcePage.getOutlinks()) {
-                        // obtem ou cria a pagina alvo (pode ser placeholder se ainda nao indexada)
-                        String targetUrl = docIdToUrl.get(targetDocId);
-                        if (targetUrl != null) {
-                            PageInfo targetPage = pageDatabase.computeIfAbsent(targetDocId,
-                                    k -> new PageInfo(targetUrl));
-                            targetPage.addInlink(sourceDocId);
-                            inlinksReconstructed++;
-                        }
-                    }
-                }
-
-                System.out.println("[" + barrelId + "] Reconstructed " + inlinksReconstructed + " inlinks");
+                // inlinks sao restauradas diretamente do JSON (ja nao precisa reconstruir)
+                // pois agora gravamos todos os entries incluindo placeholders com inlinks
+                // intactos
 
                 // conta paginas com conteudo real (exclui placeholders)
                 int pagesWithContent = 0;
