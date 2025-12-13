@@ -137,14 +137,14 @@ public class GatewayService {
             }
         }
 
-        // Test connection validity
+        // testar integridade da conexão
         try {
-            gateway.getSystemStats(); // Simple call to verify connection is alive
+            gateway.getSystemStats(); // chamda para verificar conexão
         } catch (RemoteException e) {
             System.err.println("[GatewayService] Conexão perdida, tentando reconectar...");
             gateway = null; // Reset gateway
             try {
-                connect(); // Reconnect with retry logic
+                connect(); // reconectar com logica de retentativa
             } catch (Exception ex) {
                 throw new RemoteException("Falha ao reconectar ao Gateway RMI", ex);
             }

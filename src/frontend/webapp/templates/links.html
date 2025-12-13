@@ -4,11 +4,11 @@
   th:replace="~{fragments/layout :: layout(~{::title}, ~{::main})}"
 >
   <head>
-    <title>Páginas que apontam para este URL | Googol</title>
+    <title>Pages that point to URL | Googol</title>
   </head>
   <body>
     <main>
-      <!-- Search Bar below header -->
+      <!-- search bar abaixo do header -->
       <div class="page-search-bar">
         <form
           id="page-search-form"
@@ -41,7 +41,7 @@
               <span class="mode-label">Index HN</span>
             </label>
           </div>
-          <!-- Hidden field for returning to links page after indexing -->
+          <!-- campo oculto para retornar à página de links após indexar -->
           <input
             type="hidden"
             id="page-return-url"
@@ -51,7 +51,7 @@
         </form>
       </div>
 
-      <!-- Success/Error Messages -->
+      <!-- mensagens de sucesso/erro -->
       <div
         th:if="${success}"
         class="alert alert-success"

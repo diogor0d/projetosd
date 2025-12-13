@@ -59,7 +59,7 @@ public class OpenAIService {
                 return apiKey;
             }
 
-            // 2) look for key file in a few standard locations (supports config/<name>)
+            // 2) procurar pelo ficheiro em varias localizacoes aceitaveis
             try {
                 java.util.List<Path> candidates = java.util.List.of(
                         Path.of("config", "key.openrouterai.txt"),
@@ -170,7 +170,7 @@ public class OpenAIService {
     }
 
     /**
-     * Método genérico para chamar a API do OpenRouter
+     * método genérico para chamar a API do OpenRouter
      *
      * @param prompt    o prompt para enviar à IA
      * @param maxTokens número máximo de tokens na resposta

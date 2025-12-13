@@ -41,7 +41,7 @@ echo "=== Meta 2 - Web Application ==="
 sleep 3
 
 # inicia aplicação web
-echo -e "${BLUE}Iniciando Web Application...${NC}"
+echo -e "${BLUE}A iniciar Web Application...${NC}"
 echo -e "${GREEN}A aplicação web estará disponível em: http://localhost:8081${NC}"
 echo ""
 echo "Pressiona Ctrl+C para parar todos os componentes"
@@ -52,7 +52,7 @@ mvn spring-boot:run
 
 # cleanup ao terminar
 echo ""
-echo "Parando todos os componentes..."
+echo "A parar todos os componentes..."
 pkill -f "exec:java@gateway"
 pkill -f "exec:java@barrel"
 pkill -f "exec:java@downloader"

@@ -425,7 +425,7 @@ public class StorageBarrel extends UnicastRemoteObject implements IBarrel {
         long startTime = System.currentTimeMillis();
 
         try {
-            // garante que diretorio data existe
+            // garante que path data existe
             File dataDir = new File("data");
             if (!dataDir.exists()) {
                 dataDir.mkdirs();

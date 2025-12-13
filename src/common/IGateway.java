@@ -60,7 +60,7 @@ public interface IGateway extends Remote {
     boolean isURLVisited(String url) throws RemoteException;
 
     /**
-     * Marca um URL como visitado
+     * marca um URL como visitado
      * 
      * @param url URL a marcar
      * @return true se foi marcado agora, false se já estava visitado

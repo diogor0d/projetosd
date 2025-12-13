@@ -1,48 +1,48 @@
 #!/bin/bash
 
 # Script para parar todos os componentes do sistema Googol
-# Usage: ./stop-system.sh
+# Uso: ./stop-system.sh
 
-echo "🛑 Stopping Googol Search Engine System..."
+echo "A parar o sistema de pesquisa Googol..."
 echo "=========================================="
 
-# Function to check if any processes are running
+# Funcao para verificar se existem processos em execucao
 check_processes() {
     ps aux | grep -i "exec:java@\(gateway\|barrel\|downloader\|frontend\)\|spring-boot:run" | grep -v grep | wc -l | tr -d ' '
 }
 
-# Get all PIDs for Googol components
+# Obter todos os PIDs para os componentes do Googol
 PIDS=$(ps aux | grep -i "exec:java@\(gateway\|barrel\|downloader\|frontend\)\|spring-boot:run" | grep -v grep | awk '{print $2}')
 
 if [ -z "$PIDS" ]; then
-    echo "✅ No Googol processes running."
+    echo "Nenhum processo do Googol em execucao."
     exit 0
 fi
 
-echo "Found the following processes:"
+echo "Foram encontrados os seguintes processos:"
 ps aux | grep -i "exec:java@\(gateway\|barrel\|downloader\|frontend\)\|spring-boot:run" | grep -v grep | while read line; do
     pid=$(echo "$line" | awk '{print $2}')
     if echo "$line" | grep -q "spring-boot:run"; then
-        echo "  - Spring Boot Web Application (PID $pid)"
+        echo "  - Aplicacao Web Spring Boot (PID $pid)"
     elif echo "$line" | grep -q "exec:java@gateway"; then
         echo "  - Gateway (PID $pid)"
     elif echo "$line" | grep -q "exec:java@barrel"; then
-        echo "  - Storage Barrel (PID $pid)"
+        echo "  - Barrel de Armazenamento (PID $pid)"
     elif echo "$line" | grep -q "exec:java@downloader"; then
         echo "  - Downloader (PID $pid)"
     fi
 done
 
 echo ""
-echo "Sending termination signal (SIGTERM)..."
+echo "A enviar sinal de terminacao (SIGTERM)..."
 
-# Try graceful shutdown first
+# Tentar desligar de forma controlada primeiro
 for PID in $PIDS; do
     kill $PID 2>/dev/null
 done
 
-# Wait for processes to terminate gracefully
-echo -n "Waiting for processes to stop"
+# Aguardar que os processos terminem de forma controlada
+echo -n "A aguardar a terminacao dos processos"
 for i in {1..10}; do
     sleep 1
     echo -n "."
@@ -53,26 +53,26 @@ for i in {1..10}; do
 done
 echo ""
 
-# Check if any processes are still running
+# Verificar se ainda existem processos em execucao
 REMAINING_PIDS=$(ps aux | grep -i "exec:java@\(gateway\|barrel\|downloader\|frontend\)\|spring-boot:run" | grep -v grep | awk '{print $2}')
 
 if [ -n "$REMAINING_PIDS" ]; then
-    echo "⚠️  Some processes didn't stop gracefully. Force killing..."
+    echo "Alguns processos nao terminaram de forma controlada. A forcar terminacao..."
     for PID in $REMAINING_PIDS; do
         kill -9 $PID 2>/dev/null
     done
     sleep 1
 fi
 
-# Final check
+# Verificacao final
 FINAL_COUNT=$(check_processes)
 if [ "$FINAL_COUNT" -eq 0 ]; then
-    echo "✅ All Googol system components stopped successfully!"
+    echo "Todos os componentes do sistema Googol foram terminados com sucesso!"
 else
-    echo "❌ Warning: Some processes may still be running."
-    echo "   Run 'ps aux | grep java' to check manually."
+    echo "Aviso: Alguns processos podem ainda estar em execucao."
+    echo "   Execute 'ps aux | grep java' para verificar manualmente."
     exit 1
 fi
 
 echo ""
-echo "System stopped at $(date '+%Y-%m-%d %H:%M:%S')"
+echo "Sistema parado em $(date '+%Y-%m-%d %H:%M:%S')"

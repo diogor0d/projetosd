@@ -4,7 +4,8 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * Response object for search queries containing both results and metadata
+ * objeto de resposta para consultas de pesquisa contendo resultados e metadados
+ * para apresentação ao utilizador
  */
 public class SearchResponse implements Serializable {
     private static final long serialVersionUID = 1L;

@@ -60,29 +60,30 @@ public class SpellCheckService {
             if (response != null && !response.trim().isEmpty()) {
                 String suggestion = response.trim();
 
-                // Remove possível formatação incorreta da AI
-                // Remove setas e texto original se a AI responder mal
+                // remove possível formatação incorreta da AI
+                // remove setas e texto original se a AI responder mal
                 suggestion = suggestion.replaceAll(".*->\\s*", ""); // Remove "xxx -> "
-                suggestion = suggestion.replaceAll(".*→\\s*", "");  // Remove "xxx → "
+                suggestion = suggestion.replaceAll(".*→\\s*", ""); // Remove "xxx → "
                 suggestion = suggestion.replaceAll("^['\"`]|['\"`]$", ""); // Remove aspas
                 suggestion = suggestion.trim();
 
-                // Se a AI diz que está correto, retorna null
+                // se a AI diz que está correto, retorna null
                 if (suggestion.equalsIgnoreCase("CORRECT") ||
-                    suggestion.equalsIgnoreCase("CORRECT.")) {
+                        suggestion.equalsIgnoreCase("CORRECT.")) {
                     return null;
                 }
 
-                // Só retorna se for diferente do original (case-insensitive)
+                // só retorna se for diferente do original (case-insensitive)
                 if (!suggestion.equalsIgnoreCase(query.trim())) {
                     // Validação extra: se a sugestão ainda contém o texto original, é inválida
                     String lowerQuery = query.toLowerCase();
                     String lowerSuggestion = suggestion.toLowerCase();
 
-                    // Se a sugestão começa com a query original seguida de algo, provavelmente é formato errado
+                    // se a sugestão começa com a query original seguida de algo, provavelmente é
+                    // formato errado
                     if (lowerSuggestion.startsWith(lowerQuery + " ") ||
-                        lowerSuggestion.contains("→") ||
-                        lowerSuggestion.contains("->")) {
+                            lowerSuggestion.contains("→") ||
+                            lowerSuggestion.contains("->")) {
                         System.err.println("[SpellCheck] AI returned invalid format, ignoring: " + suggestion);
                         return null;
                     }
@@ -97,4 +98,3 @@ public class SpellCheckService {
         return null;
     }
 }
-

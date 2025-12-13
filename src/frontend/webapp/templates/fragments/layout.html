@@ -18,7 +18,11 @@
     <header th:unless="${activePage == 'home'}">
       <nav th:class="${activePage == 'stats'} ? 'stats-nav' : ''">
         <a th:href="@{/}" class="logo">
-          <img th:src="@{/googol_logo.svg}" alt="Googol" style="height: 32px; vertical-align: middle;" />
+          <img
+            th:src="@{/googol_logo.svg}"
+            alt="Googol"
+            style="height: 32px; vertical-align: middle"
+          />
         </a>
         <div class="header-right" th:unless="${activePage == 'stats'}">
           <a th:href="@{/stats}" class="stats-bar-link">
@@ -51,13 +55,17 @@
             <div class="theme-toggle-switch"></div>
           </div>
         </div>
-        <div class="theme-toggle" id="theme-toggle" th:if="${activePage == 'stats'}">
+        <div
+          class="theme-toggle"
+          id="theme-toggle"
+          th:if="${activePage == 'stats'}"
+        >
           <div class="theme-toggle-switch"></div>
         </div>
       </nav>
     </header>
 
-    <!-- Stats bar for home page only - centered at top -->
+    <!-- barra de estatisticas para a home page apenas , centrada no topo-->
     <div th:if="${activePage == 'home'}" class="home-stats-bar">
       <div class="theme-toggle" id="theme-toggle">
         <div class="theme-toggle-switch"></div>
@@ -89,7 +97,7 @@
     </div>
 
     <main th:replace="${content}">
-      <!-- Content will be inserted here -->
+      <!-- conteudo é inserido aqui -->
     </main>
 
     <footer>

@@ -9,7 +9,7 @@
   </head>
   <body>
     <main>
-      <!-- Search Bar below header -->
+      <!-- Search Bar abaixo do header -->
       <div class="page-search-bar">
         <form
           id="page-search-form"
@@ -42,7 +42,7 @@
               <span class="mode-label">Index HN</span>
             </label>
           </div>
-          <!-- Hidden field for returning to current search after indexing -->
+          <!-- campo oculto para retornar à pesquisa atual após indexar -->
           <input
             type="hidden"
             id="page-return-query"
@@ -150,7 +150,7 @@
         </button>
       </div>
 
-      <!-- Results Count -->
+      <!-- contagem de resultados -->
       <div
         th:if="${totalCount != null && totalCount > 0}"
         style="
@@ -159,9 +159,17 @@
           font-size: 0.9rem;
         "
       >
-        About <strong th:text="${totalCount}">0</strong> results
-        <span th:if="${searchTime != null}"
-          >(<span th:text="${searchTime}">0.00</span> seconds)</span
+        <span th:if="${searchTimeMs != null && searchTimeMs > 0}"
+          >Retrieved
+        </span>
+        <strong th:text="${totalCount}">0</strong> results
+        <span th:if="${searchTimeMs != null && searchTimeMs > 0}">
+          in
+          <strong
+            th:text="${#numbers.formatDecimal(searchTimeMs / 1000.0, 1, 3)}"
+            >0.000</strong
+          >
+          seconds</span
         >
       </div>
 
@@ -267,7 +275,7 @@
         <!-- Previous Button -->
         <a
           th:if="${page > 0}"
-          th:href="@{/search(q=${query}, page=${page - 1})}"
+          th:href="@{/search(q=${query}, page=${page - 1}, firstPageSearchTime=${searchTimeMs})}"
           class="pagination-nav"
           style="
             padding: 0.5rem 1rem;
@@ -288,14 +296,14 @@
           >← Previous</span
         >
 
-        <!-- Page Numbers -->
+        <!-- numeros de pagina -->
         <th:block
           th:with="startPage=${page < 5 ? 0 : page - 4}, endPage=${page + 5 > totalPages ? totalPages - 1 : page + 4}"
         >
           <!-- First page + ellipsis if needed -->
           <a
             th:if="${startPage > 0}"
-            th:href="@{/search(q=${query}, page=0)}"
+            th:href="@{/search(q=${query}, page=0, firstPageSearchTime=${searchTimeMs})}"
             class="pagination-number"
             style="
               min-width: 2.5rem;
@@ -314,11 +322,11 @@
             >...</span
           >
 
-          <!-- Page number range -->
+          <!-- range dos numeros de pagina -->
           <th:block th:each="i : ${#numbers.sequence(startPage, endPage)}">
             <a
               th:if="${i != page}"
-              th:href="@{/search(q=${query}, page=${i})}"
+              th:href="@{/search(q=${query}, page=${i}, firstPageSearchTime=${searchTimeMs})}"
               th:text="${i + 1}"
               class="pagination-number"
               style="
@@ -355,7 +363,7 @@
           >
           <a
             th:if="${endPage < totalPages - 1}"
-            th:href="@{/search(q=${query}, page=${totalPages - 1})}"
+            th:href="@{/search(q=${query}, page=${totalPages - 1}, firstPageSearchTime=${searchTimeMs})}"
             th:text="${totalPages}"
             class="pagination-number"
             style="
@@ -373,7 +381,7 @@
         <!-- Next Button -->
         <a
           th:if="${hasMoreResults}"
-          th:href="@{/search(q=${query}, page=${page + 1})}"
+          th:href="@{/search(q=${query}, page=${page + 1}, firstPageSearchTime=${searchTimeMs})}"
           class="pagination-nav"
           style="
             padding: 0.5rem 1rem;

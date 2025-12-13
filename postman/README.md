@@ -80,20 +80,6 @@ To test HackerNews story indexing:
 
 Alternatively, the **HackerNews API → Index HackerNews Stories (API)** request lets you post the same payload as JSON, which is useful when scripting the call or triggering from CI.
 
-## Example Queries for HackerNews
-
-Popular terms that usually have good results:
-
-- `python`
-- `rust`
-- `AI` or `artificial intelligence`
-- `distributed systems`
-- `kubernetes`
-- `machine learning`
-- `blockchain`
-- `javascript`
-- `golang`
-
 ## Configuration
 
 The default base URL is `http://localhost:8081`. If your application runs on a different port, update the collection variable:
@@ -107,4 +93,4 @@ The default base URL is `http://localhost:8081`. If your application runs on a d
 - HackerNews indexing is asynchronous - it returns immediately and processes in the background
 - High-priority URLs (user-submitted and HackerNews) are processed before crawled URLs
 - Search results include TF-IDF scores for relevance ranking
-- AI features require OpenAI API key configuration in `application.properties`
+- AI features require openrouterAI API key configuration in `application.properties`

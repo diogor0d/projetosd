@@ -60,6 +60,7 @@ public class SearchController {
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "aiAnalysis", defaultValue = "false") boolean aiAnalysis,
             @RequestParam(value = "indexHackerNews", defaultValue = "false") boolean indexHackerNews,
+            @RequestParam(value = "firstPageSearchTime", required = false) Long firstPageSearchTime,
             Model model) {
 
         try {
@@ -74,6 +75,11 @@ public class SearchController {
             model.addAttribute("totalPages", searchResponse.getTotalPages());
             model.addAttribute("hasResults", searchResponse.hasResults());
             model.addAttribute("hasMoreResults", searchResponse.hasMorePages());
+
+            // usa o tempo da primeira pagina se disponivel, senao usa o tempo atual
+            long displaySearchTime = (page == 0) ? searchResponse.getSearchTimeMs()
+                    : (firstPageSearchTime != null ? firstPageSearchTime : searchResponse.getSearchTimeMs());
+            model.addAttribute("searchTimeMs", displaySearchTime);
 
             // gera análise com IA se solicitado e há resultados
             if (aiAnalysis && searchResponse.hasResults()) {

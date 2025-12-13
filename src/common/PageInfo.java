@@ -21,7 +21,7 @@ public class PageInfo implements Serializable {
     private Set<Integer> outlinks; // Document IDs para onde esta página aponta
     private long indexedTimestamp; // Timestamp de quando a página foi indexada
 
-    // Armazenamento temporário para URLs de outlinks (usado pelo Downloader,
+    // armazenamento temporário para URLs de outlinks (usado pelo Downloader,
     // enviado via RMI, então
     // convertido para docIds pelo barrel)
     private Set<String> outlinkUrls;

@@ -15,29 +15,29 @@
         stompClient.debug = null;
         
         stompClient.connect({}, function(frame) {
-            console.log('[Global Stats] ✅ Connected successfully!');
+            console.log('[Global Stats] Connected successfully!');
             connected = true;
             updateConnectionIndicator(true);
             
             // Subscribe to stats topic
             stompClient.subscribe('/topic/stats', function(message) {
-                console.log('[Global Stats] 📊 Received message:', message.body);
+                console.log('[Global Stats] Received message:', message.body);
                 const stats = JSON.parse(message.body);
                 updateGlobalStatsBar(stats);
                 updateStatsPage(stats);
             });
             
-            console.log('[Global Stats] 📡 Subscribed to /topic/stats');
+            console.log('[Global Stats] Subscribed to /topic/stats');
             
             // Fetch initial stats immediately
             fetchInitialStats();
         }, function(error) {
-            console.error('[Global Stats] ❌ Connection error:', error);
+            console.error('[Global Stats] Connection error:', error);
             connected = false;
             updateConnectionIndicator(false);
             
             // Retry connection after 5 seconds
-            console.log('[Global Stats] 🔄 Retrying in 5 seconds...');
+            console.log('[Global Stats] Retrying in 5 seconds...');
             setTimeout(connect, 5000);
         });
     }
@@ -48,12 +48,12 @@
         fetch('/api/stats')
             .then(response => response.json())
             .then(stats => {
-                console.log('[Global Stats] 📊 Initial stats received:', stats);
+                console.log('[Global Stats] Initial stats received:', stats);
                 updateGlobalStatsBar(stats);
                 updateStatsPage(stats);
             })
             .catch(error => {
-                console.error('[Global Stats] ❌ Error fetching initial stats:', error);
+                console.error('[Global Stats] Error fetching initial stats:', error);
             });
     }
     
@@ -187,7 +187,7 @@
     
     // Auto-connect when page loads (skip on stats page - it has its own WebSocket)
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('[Global Stats] 🚀 Page loaded, initializing...');
+        console.log('[Global Stats] Page loaded, initializing...');
         // Always connect - we handle both global bar and stats page now
         connect();
     });

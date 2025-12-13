@@ -70,7 +70,7 @@ public class HackerNewsService {
 
             String[] terms = searchTerms.toLowerCase().split("\\s+");
             int checked = 0;
-            int maxStoriesToCheck = 200; // aumentado para encontrar mais matches
+            int maxStoriesToCheck = 200; // pool de historias para encontrar mais matches
 
             // itera sobre as stories até encontrar o número desejado de matches
             for (int i = 0; i < storyIds.size() && matchingStories.size() < maxStories

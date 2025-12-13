@@ -42,7 +42,7 @@ public class StatsUpdateService extends UnicastRemoteObject implements IStatsLis
 
             System.out.println("[StatsUpdateService] Registando como listener de estatísticas...");
             gatewayService.registerStatsListener(this);
-            System.out.println("[StatsUpdateService] ✅ Registado como listener de estatísticas");
+            System.out.println("[StatsUpdateService] Registado como listener de estatísticas");
 
             // obtém estatísticas iniciais
             try {
@@ -57,7 +57,7 @@ public class StatsUpdateService extends UnicastRemoteObject implements IStatsLis
                 e.printStackTrace();
             }
         } catch (Exception e) {
-            System.err.println("[StatsUpdateService] ❌ Erro ao registar listener: " + e.getMessage());
+            System.err.println("[StatsUpdateService] Erro ao registar listener: " + e.getMessage());
             e.printStackTrace();
         }
     }

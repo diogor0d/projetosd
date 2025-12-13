@@ -6,12 +6,12 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Interface RMI para o Storage Barrel
+ * interface RMI para o Storage Barrel
  */
 public interface IBarrel extends Remote {
 
     /**
-     * Indexa informação de uma página (chamado pelos Downloaders)
+     * indexa informação de uma página (chamado pelos Downloaders)
      */
     void indexPage(PageInfo pageInfo) throws RemoteException;
 
@@ -25,12 +25,12 @@ public interface IBarrel extends Remote {
     SearchResponse search(Set<String> terms, int page) throws RemoteException;
 
     /**
-     * Obtém lista de páginas que apontam para um URL específico
+     * obtém lista de páginas que apontam para um URL específico
      */
     List<String> getInlinks(String url) throws RemoteException;
 
     /**
-     * Retorna estatísticas do barrel
+     * retorna estatísticas do barrel
      */
     BarrelStats getStats() throws RemoteException;
 
@@ -40,7 +40,7 @@ public interface IBarrel extends Remote {
     boolean ping() throws RemoteException;
 
     /**
-     * Verifica se o barrel está pronto para processar pesquisas
+     * verifica se o barrel está pronto para processar pesquisas
      * (não está sincronizando)
      */
     boolean isReady() throws RemoteException;
