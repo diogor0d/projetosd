@@ -91,8 +91,34 @@
     <!-- Build -->
     <build>
         <sourceDirectory>src</sourceDirectory>
+        <resources>
+            <resource>
+                <directory>src/frontend/webapp</directory>
+            </resource>
+        </resources>
         
         <plugins>
+            <!-- Build Helper Plugin to add additional source directory -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.4.0</version>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/frontend/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- Compiler Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -176,7 +202,7 @@
                     <execution>
                         <id>webapp</id>
                         <configuration>
-                            <mainClass>frontend.WebApplication</mainClass>
+                            <mainClass>frontend.GoogolApplication</mainClass>
                         </configuration>
                     </execution>
                 </executions>
@@ -186,6 +212,9 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>frontend.GoogolApplication</mainClass>
+                </configuration>
             </plugin>
         </plugins>
     </build>
