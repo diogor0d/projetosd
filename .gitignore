@@ -78,3 +78,5 @@ data/barrel_1_index.json
 postman/Googol-API.postman_environment.json
 data/barrel_1_index.json.backup
 data/index10kpaginas.json
+start.sh
+stop.sh
