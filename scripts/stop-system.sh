@@ -76,4 +76,3 @@ fi
 
 echo ""
 echo "System stopped at $(date '+%Y-%m-%d %H:%M:%S')"
-

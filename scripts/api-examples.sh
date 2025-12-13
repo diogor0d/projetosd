@@ -1,3 +1,4 @@
+#!/bin/bash
 # exemplos de uso da API REST do Googol
 
 # health check

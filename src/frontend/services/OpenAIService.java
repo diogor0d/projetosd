@@ -52,11 +52,26 @@ public class OpenAIService {
      */
     private String getApiKey() {
         if (apiKey == null || apiKey.isEmpty()) {
+            // 1) check environment variable
+            String envKey = System.getenv("OPENROUTER_API_KEY");
+            if (envKey != null && !envKey.isEmpty()) {
+                apiKey = envKey.trim();
+                return apiKey;
+            }
+
+            // 2) look for key file in a few standard locations (supports config/<name>)
             try {
-                // tenta ler de key.openrouterai.txt
-                Path keyFile = Path.of("key.openrouterai.txt");
-                if (Files.exists(keyFile)) {
-                    apiKey = Files.readString(keyFile).trim();
+                java.util.List<Path> candidates = java.util.List.of(
+                        Path.of("config", "key.openrouterai.txt"),
+                        Path.of("config", "key.openrouter.txt"),
+                        Path.of("key.openrouterai.txt"),
+                        Path.of("key.openrouter.txt"));
+
+                for (Path keyFile : candidates) {
+                    if (Files.exists(keyFile)) {
+                        apiKey = Files.readString(keyFile).trim();
+                        break;
+                    }
                 }
             } catch (IOException e) {
                 System.err.println("[OpenAIService] Erro ao ler ficheiro de chave: " + e.getMessage());
@@ -157,7 +172,7 @@ public class OpenAIService {
     /**
      * Método genérico para chamar a API do OpenRouter
      *
-     * @param prompt o prompt para enviar à IA
+     * @param prompt    o prompt para enviar à IA
      * @param maxTokens número máximo de tokens na resposta
      * @return resposta da IA
      */
