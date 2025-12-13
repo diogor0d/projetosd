@@ -1119,7 +1119,7 @@ footer {
 .theme-toggle::before {
     content: '🌙';
     left: 50%;
-    transform: translate(calc(-50% - 16px), -50%);
+    transform: translate(calc(-50% - 14px), -50%);
 }
 
 .theme-toggle::after {
