@@ -1,5 +1,8 @@
 # Googol - Motor de Pesquisa Distribuído
 
+<img src="image1.png" alt="googol">
+<img src="image2.png" alt="googol">
+
 ## Descrição do Projeto
 
 Sistema completo de pesquisa web distribuído com funcionalidades semelhantes ao Google. Implementa indexação automática através de web crawlers paralelos e motor de busca com índice invertido. Inclui interface web interativa para acesso via browser, cliente de linha de comandos, e integrações com APIs externas (Hacker News e OpenRouter.ai para análises com IA).
@@ -357,7 +360,3 @@ A aplicação implementa:
 - Logs: Console (configurável em `application.properties`)
 - Cache: Em memória (sem persistência)
 - Armazenamento de índices: Ficheiros JSON em `data/`
-
-## Autores
-
-Projeto de Sistemas Distribuídos - Universidade de Coimbra
